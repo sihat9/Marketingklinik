@@ -1,61 +1,63 @@
 <!DOCTYPE html>
 <html lang="ms">
 <head>
-  <!-- ================= SECURITY (CSP via <meta>) =================
-       Nota: 'frame-ancestors' tidak berfungsi dalam <meta>, jadi tidak disertakan. -->
+  <!-- ========= SECURITY (CSP via <meta>) =========
+       - Benarkan GIS (accounts.google.com) untuk skrip & stylesheet
+       - Guna nonce untuk benarkan skrip inline utama
+       - Tambah cdn.jsdelivr.net dalam connect-src untuk elak ralat sourcemap di DevTools
+  -->
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none';
                  script-src 'self' 'nonce-r4nd0m123' https://accounts.google.com https://accounts.gstatic.com https://cdn.jsdelivr.net;
                  connect-src https://script.google.com https://script.googleusercontent.com https://cdn.jsdelivr.net;
-                 style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://accounts.google.com https://accounts.gstatic.com;
-                 img-src 'self' data: https://accounts.google.com https://accounts.gstatic.com;
+                 style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://accounts.google.com;
+                 img-src 'self' data:;
                  font-src 'self' https://cdn.jsdelivr.net;
                  frame-src https://accounts.google.com;
                  base-uri 'none'; form-action 'none';" />
-  <!-- Benarkan popup daripada Google SSO -->
   <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin-allow-popups">
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), autoplay=(), fullscreen=()" />
 
-  <!-- ================= META ================= -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Clinic Marketing Dashboard</title>
 
-  <!-- ================= ASSETS ================= -->
+  <!-- Assets -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-  <!-- ================= THEME: LIGHT ================= -->
+  <!-- ======== LIGHT THEME (PUTIH) ======== -->
   <style>
     :root{
-      --bg:#ffffff; --muted-bg:#f8fafc; --card:#ffffff; --border:#e5e7eb;
-      --text:#0f172a; --muted:#64748b;
-      --primary:#2563eb; --primary-600:#1d4ed8;
-      --ok:#16a34a; --warn:#f59e0b; --danger:#dc2626;
-      --ring: rgba(37,99,235,.20);
+      --bg:#ffffff; --text:#111827; --muted:#6b7280; --card:#ffffff; --border:#e5e7eb;
+      --primary:#0d6efd; --success:#16a34a;
     }
     html,body{height:100%;}
-    body{
-      background: radial-gradient(1200px 600px at 20% -10%, rgba(37,99,235,.06) 0%, transparent 60%), var(--bg);
-      color: var(--text);
-      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
-    }
-    .brand{ font-weight:800; letter-spacing:.3px; }
+    body{ background: var(--bg); color: var(--text); }
+    .brand{ font-weight:800; letter-spacing:.2px; }
     .muted{ color: var(--muted); }
-    .card{ background: var(--card); border:1px solid var(--border); border-radius:16px; }
-    .btn-primary{ background: linear-gradient(180deg, var(--primary), var(--primary-600)); border:0; }
-    .btn-outline-light{ border-color: var(--border); color: var(--text); }
-    .btn-outline-light:hover{ background: var(--muted-bg); }
-    .chip{ padding:.4rem .7rem; border-radius:999px; background:#eef2ff; color:#3730a3; font-weight:600; font-size:.85rem; }
-    .hero{ background: linear-gradient(120deg, rgba(37,99,235,.08), rgba(34,197,94,.08)); border:1px solid var(--border); border-radius:16px; padding:18px; }
-    .stat{ display:flex; align-items:center; gap:.75rem; padding:.75rem 1rem; border-radius:14px; background:var(--muted-bg); border:1px solid var(--border); }
-    .ring{ box-shadow: 0 0 0 4px var(--ring); border-radius:12px; }
+    .card{
+      background: var(--card);
+      border:1px solid var(--border);
+      border-radius: 16px;
+    }
+    .hero{
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:18px;
+      background: linear-gradient(180deg, rgba(13,110,253,.06), rgba(13,110,253,.02));
+    }
+    .stat{
+      display:flex; align-items:center; gap:.75rem; padding:.85rem 1rem; border-radius:12px;
+      background:#f8fafc; border:1px solid var(--border);
+    }
+    .chip{ padding:.35rem .65rem; border-radius:999px; background:#eef2ff; color:#1e40af; font-size:.85rem; }
     .hidden{ display:none !important; }
-    a, a:hover{ color: var(--primary); }
-    .table-hover tbody tr:hover{ background-color:#f1f5f9; }
+    a, a:hover{ color:#0d6efd; }
+    .table thead th{ background:#f8fafc; }
   </style>
 </head>
 <body>
@@ -65,19 +67,20 @@
     <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
       <div>
         <div class="brand h3 mb-1">Clinic Marketing Dashboard</div>
-        <div class="muted">Pola penyakit & peratusan — agregat, <strong>tanpa PII</strong></div>
+        <div class="muted">Ringkasan kategori penyakit untuk strategi marketing — agregat, tanpa PII</div>
       </div>
       <div class="d-flex gap-2 align-items-center">
         <span id="whoami" class="muted small"></span>
-        <button class="btn btn-outline-light btn-sm hidden" id="btnSignOut"><i class="bi bi-box-arrow-right"></i> Keluar</button>
+        <button class="btn btn-outline-secondary btn-sm hidden" id="btnSignOut"><i class="bi bi-box-arrow-right"></i> Keluar</button>
       </div>
     </div>
 
+    <!-- HERO -->
     <div class="hero mb-4">
       <div class="row align-items-center g-3">
         <div class="col-lg-8">
-          <h4 class="mb-1">Gambaran Kesihatan Komuniti Bulan Ini</h4>
-          <div class="muted">Lihat kategori dominan untuk kempen marketing — data dari catatan konsultasi doktor.</div>
+          <h4 class="mb-1">Gambaran Bulan Semasa</h4>
+          <div class="muted">Kenal pasti penyakit dominan untuk kempen yang lebih tepat.</div>
         </div>
         <div class="col-lg-4 text-lg-end">
           <button class="btn btn-primary btn-sm" id="btnRefresh"><i class="bi bi-arrow-repeat"></i> Segarkan Bulan Ini</button>
@@ -87,11 +90,11 @@
 
     <!-- SIGN-IN GATE -->
     <div id="signinCard" class="card p-4 text-center mb-4">
-      <h4 class="mb-2">Akses Terhad</h4>
+      <h5 class="mb-2">Akses Terhad</h5>
       <p class="muted mb-3">Log masuk dengan akaun Google staf klinik untuk melihat dashboard.</p>
-      <div id="gsiBtn" class="d-inline-block ring"></div>
+      <div id="gsiBtn" class="d-inline-block"></div>
       <div id="signinMsg" class="small text-danger mt-3"></div>
-      <div class="small muted mt-2">*Akses disahkan di pelayan; tiada data dipaparkan tanpa kebenaran.</div>
+      <div class="small muted mt-2">*Akses hanya diberi selepas disahkan di pelayan.</div>
     </div>
 
     <!-- DASHBOARD -->
@@ -112,19 +115,35 @@
             </div>
             <div class="d-flex gap-2 mt-3">
               <button class="btn btn-success btn-sm" id="btnApplyRange"><i class="bi bi-clipboard2-data"></i> Kira & Kemas Kini</button>
-              <button class="btn btn-outline-light btn-sm" id="btnExport"><i class="bi bi-download"></i> Export CSV</button>
+              <button class="btn btn-outline-secondary btn-sm" id="btnExport"><i class="bi bi-download"></i> Export CSV</button>
             </div>
             <div class="mt-3 small muted" id="rangeInfo"></div>
             <div class="mt-1 small muted" id="lastUpdated"></div>
           </div>
         </div>
+
         <div class="col-12 col-lg-7">
           <div class="card p-3 h-100">
-            <h5 class="mb-3">Sorotan Bulan Ini</h5>
+            <h5 class="mb-3">Sorotan</h5>
             <div class="row g-3">
-              <div class="col-12 col-md-4"><div class="stat"><div class="chip">Labeled</div><div class="ms-auto h5 mb-0" id="kpiLabeled">-</div></div></div>
-              <div class="col-12 col-md-4"><div class="stat"><div class="chip">Kategori</div><div class="ms-auto h5 mb-0" id="kpiCategories">-</div></div></div>
-              <div class="col-12 col-md-4"><div class="stat"><div class="chip">Top</div><div class="ms-auto h6 mb-0" id="kpiTop">-</div></div></div>
+              <div class="col-12 col-md-4">
+                <div class="stat">
+                  <div class="chip">Labeled</div>
+                  <div class="ms-auto h5 mb-0" id="kpiLabeled">-</div>
+                </div>
+              </div>
+              <div class="col-12 col-md-4">
+                <div class="stat">
+                  <div class="chip">Kategori</div>
+                  <div class="ms-auto h5 mb-0" id="kpiCategories">-</div>
+                </div>
+              </div>
+              <div class="col-12 col-md-4">
+                <div class="stat">
+                  <div class="chip">Top</div>
+                  <div class="ms-auto h6 mb-0" id="kpiTop">-</div>
+                </div>
+              </div>
             </div>
             <div class="mt-2 small muted">“Labeled” = jumlah lawatan yang dipadankan ≥ 1 kategori.</div>
           </div>
@@ -135,7 +154,7 @@
         <div class="col-12 col-xl-6">
           <div class="card p-3">
             <div class="d-flex justify-content-between align-items-center">
-              <h5 class="mb-3">Peratus Mengikut Kategori</h5>
+              <h5 class="mb-3 mb-0">Peratus Mengikut Kategori</h5>
               <span class="muted small" id="legendPeriod1"></span>
             </div>
             <canvas id="chartDonut" height="260"></canvas>
@@ -144,7 +163,7 @@
         <div class="col-12 col-xl-6">
           <div class="card p-3">
             <div class="d-flex justify-content-between align-items-center">
-              <h5 class="mb-3">Top Kategori (Kiraan)</h5>
+              <h5 class="mb-3 mb-0">Top Kategori (Kiraan)</h5>
               <span class="muted small" id="legendPeriod2"></span>
             </div>
             <canvas id="chartBar" height="260"></canvas>
@@ -155,7 +174,7 @@
       <div class="card p-3 mb-5">
         <h5 class="mb-3">Jadual Perincian</h5>
         <div class="table-responsive">
-          <table class="table table-hover align-middle" id="tbl">
+          <table class="table table-striped align-middle" id="tbl">
             <thead>
               <tr>
                 <th style="width:60px;">#</th>
@@ -170,15 +189,15 @@
         </div>
       </div>
 
-      <footer class="text-center muted small">© Klinik — Dashboard agregat (tiada PII). Akses disahkan di pelayan.</footer>
+      <footer class="text-center muted small">© Klinik — Dashboard agregat (tanpa PII). Akses disahkan di pelayan.</footer>
     </div>
   </div>
 
-  <!-- ================= APP (inline dibenarkan melalui nonce) ================= -->
+  <!-- ========= APP SCRIPT (inline; dibenarkan oleh nonce) ========= -->
   <script nonce="r4nd0m123">
-  /*** KONFIG — MASUKKAN NILAI ANDA ***/
-  const CLIENT_ID   = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';   // <-- isi client ID anda
-  const BACKEND_URL = 'https://script.google.com/macros/s/…/exec';          // <-- isi URL /exec anda
+  /*** KONFIG — KEKALKAN NILAI ANDA ***/
+  const CLIENT_ID   = '366415747851-umhhc3r11chpg4stiqailac1rq7klrrp.apps.googleusercontent.com';
+  const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxkmVWcorPPwWmIXN-lFPJ8wucqyKgqwrfiD4ZBqRYl1gKOcRoM7oXNzSO_XPLYZ8CL/exec';
 
   /*** STATE ***/
   let ID_TOKEN = null; let donutChart, barChart;
@@ -194,7 +213,6 @@
     if (!window.google || !google.accounts || !google.accounts.id) {
       $('#signinMsg').textContent = 'Ralat memuatkan Google SSO. Semak sambungan internet.'; return;
     }
-    // Penting: "Authorized JavaScript origins" di OAuth Client MESTI mengandungi origin laman ini (contoh: https://username.github.io)
     google.accounts.id.initialize({ client_id: CLIENT_ID, callback: onSignIn, auto_select:false, ux_mode:'popup', context:'signin' });
     google.accounts.id.renderButton($('#gsiBtn'), { theme:'outline', size:'large', shape:'pill' });
     $('#btnSignOut').addEventListener('click', signOut);
@@ -215,9 +233,12 @@
       ID_TOKEN = resp.credential;
       $('#signinMsg').textContent = '';
       $('#whoami').textContent = 'Log masuk berjaya';
-      hide($('#signinCard')); show($('#dashboard')); $('#btnSignOut').classList.remove('hidden');
+      hide($('#signinCard')); show($('#dashboard'));
       refreshThisMonth();
-    }catch(e){ $('#signinMsg').textContent='Log masuk gagal. Cuba lagi.'; console.error(e); }
+      $('#btnSignOut').classList.remove('hidden');
+    }catch(e){
+      $('#signinMsg').textContent = 'Log masuk gagal. Cuba lagi.'; console.error(e);
+    }
   }
   function signOut(){ ID_TOKEN = null; location.reload(); }
 
@@ -246,21 +267,31 @@
   function toUIRows(rows){ return (rows||[]).map(r=>({ code:r[4], name:r[5], count:r[6], pct:r[7] })); }
 
   function drawDonut(list){
-    const ctx=$('#chartDonut'); const labels=list.map(d=>d.name), values=list.map(d=>d.pct);
+    const ctx=document.getElementById('chartDonut');
+    const labels=list.map(d=>d.name), values=list.map(d=>d.pct);
     if (donutChart) donutChart.destroy();
-    donutChart=new Chart(ctx,{ type:'doughnut', data:{ labels, datasets:[{ data:values }] },
-      options:{ plugins:{ legend:{ labels:{ color:'#0f172a' } }, tooltip:{ callbacks:{ label:(c)=>`${c.label}: ${c.raw}%` } } }, cutout:'60%' } });
+    donutChart=new Chart(ctx,{
+      type:'doughnut',
+      data:{ labels, datasets:[{ data: values }] },
+      options:{ plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label:(c)=>`${c.label}: ${c.raw}%` } } }, cutout:'60%' }
+    });
   }
   function drawBar(list){
-    const ctx=$('#chartBar'); const labels=list.map(d=>d.name), values=list.map(d=>d.count);
+    const ctx=document.getElementById('chartBar');
+    const labels=list.map(d=>d.name), values=list.map(d=>d.count);
     if (barChart) barChart.destroy();
-    barChart=new Chart(ctx,{ type:'bar', data:{ labels, datasets:[{ data:values }] },
-      options:{ plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{ color:'#0f172a' } }, y:{ ticks:{ color:'#0f172a' } } } } });
+    barChart=new Chart(ctx,{
+      type:'bar',
+      data:{ labels, datasets:[{ data: values }] },
+      options:{ plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{} }, y:{ ticks:{} } } }
+    });
   }
   function renderTable(list){
     const tbody=$('#tbl tbody'); tbody.innerHTML='';
     list.forEach((d,i)=>{ const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${i+1}</td><td>${d.name}</td><td>${d.code}</td><td>${d.count}</td><td>${d.pct}%</td>`; tbody.appendChild(tr); });
+      tr.innerHTML=`<td>${i+1}</td><td>${d.name}</td><td>${d.code}</td><td>${d.count}</td><td>${d.pct}%</td>`;
+      tbody.appendChild(tr);
+    });
   }
 
   /*** FLOWS ***/
@@ -269,29 +300,32 @@
     $('#rangeInfo').textContent='Mengira bulan ini…';
     try{
       const res=await callAPI('compute_month',{year:y,month:m});
-      setKPIs(res); const list=toUIRows(res.rows).sort((a,b)=>b.count-a.count);
+      setKPIs(res);
+      const list=toUIRows(res.rows).sort((a,b)=>b.count-a.count);
       drawDonut(list); drawBar(list.slice(0,10)); renderTable(list);
       $('#rangeInfo').textContent=`Julat: ${res.start} → ${res.end}`;
-      $('#legendPeriod1').textContent = `${res.start} → ${res.end}`;
-      $('#legendPeriod2').textContent = `${res.start} → ${res.end}`;
+      $('#legendPeriod1').textContent=fmtPeriod(res.start,res.end);
+      $('#legendPeriod2').textContent=fmtPeriod(res.start,res.end);
     }catch(err){ $('#rangeInfo').textContent='Ralat: '+err.message; console.error(err); }
   }
   async function applyRange(){
-    const s=$('#startDate').value, e=$('#endDate').value; if(!s||!e){alert('Sila pilih tarikh mula & tamat.');return;}
+    const s=$('#startDate').value, e=$('#endDate').value;
+    if(!s||!e){ alert('Sila pilih tarikh mula & tamat.'); return; }
     $('#rangeInfo').textContent='Mengira julat tarikh…';
     try{
       const res=await callAPI('compute_range',{start:s,end:e});
-      setKPIs(res); const list=toUIRows(res.rows).sort((a,b)=>b.count-a.count);
+      setKPIs(res);
+      const list=toUIRows(res.rows).sort((a,b)=>b.count-a.count);
       drawDonut(list); drawBar(list.slice(0,10)); renderTable(list);
       $('#rangeInfo').textContent=`Julat: ${res.start} → ${res.end}`;
-      $('#legendPeriod1').textContent = `${res.start} → ${res.end}`;
-      $('#legendPeriod2').textContent = `${res.start} → ${res.end}`;
+      $('#legendPeriod1').textContent=fmtPeriod(res.start,res.end);
+      $('#legendPeriod2').textContent=fmtPeriod(res.start,res.end);
     }catch(err){ $('#rangeInfo').textContent='Ralat: '+err.message; console.error(err); }
   }
 
   /*** EXPORT ***/
   function exportFromTable(){
-    const rows=[...document.querySelectorAll('#tbl tbody tr')).map(tr=>{const t=tr.querySelectorAll('td');
+    const rows=[...document.querySelectorAll('#tbl tbody tr')].map(tr=>{const t=tr.querySelectorAll('td');
       return { name:t[1].textContent, code:t[2].textContent, count:+t[3].textContent, pct:parseFloat(t[4].textContent) };});
     const csv=[['category','code','count','percentage']].concat(rows.map(d=>[d.name,d.code,d.count,d.pct])).map(r=>r.join(',')).join('\n');
     const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); const a=document.createElement('a'); a.href=url; a.download='marketing_summary.csv'; a.click(); URL.revokeObjectURL(url);
