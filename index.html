@@ -1,69 +1,54 @@
 <!DOCTYPE html>
 <html lang="ms">
 <head>
-  <!-- ============ SECURITY HARDENING ============ -->
-  <!-- CSP: ketat, hanya domain yang perlu. 'unsafe-inline' pada style untuk benarkan <style> dalaman -->
+  <!-- SECURITY HARDENING (CSP via <meta>): tiada frame-ancestors di sini kerana ia hanya berfungsi sebagai HTTP header -->
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none';
-                 script-src 'self' https://accounts.google.com https://accounts.gstatic.com https://cdn.jsdelivr.net;
-                 connect-src https://script.google.com https://script.googleusercontent.com;
+                 script-src 'self' 'nonce-r4nd0m123' https://accounts.google.com https://accounts.gstatic.com https://cdn.jsdelivr.net;
+                 connect-src https://script.google.com https://script.googleusercontent.com https://cdn.jsdelivr.net;
                  style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
                  img-src 'self' data:;
                  font-src 'self' https://cdn.jsdelivr.net;
                  frame-src https://accounts.google.com;
-                 base-uri 'none'; form-action 'none'; frame-ancestors 'none';" />
+                 base-uri 'none'; form-action 'none';" />
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), autoplay=(), fullscreen=()" />
-
-  <!-- ============ META ============ -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Clinic Marketing Dashboard</title>
 
-  <!-- ============ ASSETS ============ -->
+  <!-- ASSETS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-  <!-- ============ THEME ============ -->
+  <!-- THEME (ringkas) -->
   <style>
-    :root{
-      --bg:#0b1020; --bg2:#0f172a; --card:#101827; --text:#e5e7eb; --muted:#9ca3af;
-      --primary:#60a5fa; --primary-600:#3b82f6; --ok:#34d399; --warn:#f59e0b; --danger:#f87171;
-      --ring: rgba(96,165,250,.35);
-    }
-    html,body{height:100%;}
-    body{ background: radial-gradient(1200px 600px at 20% -10%, #1b2660 0%, transparent 60%), var(--bg);
-          color: var(--text); }
-    .brand{ font-weight:800; letter-spacing:.3px; }
-    .muted{ color: var(--muted); }
-    .card{ background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)) , var(--card);
+    :root{ --bg:#0b1020; --card:#101827; --text:#e5e7eb; --muted:#9ca3af; --primary:#60a5fa; --primary-600:#3b82f6; }
+    body{ background: radial-gradient(1200px 600px at 20% -10%, #1b2660 0%, transparent 60%), var(--bg); color:var(--text); }
+    .brand{ font-weight:800; letter-spacing:.3px; } .muted{ color:var(--muted); }
+    .card{ background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)), var(--card);
            border:1px solid rgba(255,255,255,.06); border-radius:20px; }
     .btn-primary{ background: linear-gradient(180deg, var(--primary), var(--primary-600)); border:0; }
     .chip{ padding:.4rem .7rem; border-radius:999px; background:rgba(255,255,255,.06); font-size:.85rem; }
-    .hero{
-      background: linear-gradient(120deg, rgba(96,165,250,.12), rgba(52,211,153,.10));
-      border:1px solid rgba(255,255,255,.06); border-radius:20px; padding:18px;
-    }
+    .hero{ background: linear-gradient(120deg, rgba(96,165,250,.12), rgba(52,211,153,.10));
+           border:1px solid rgba(255,255,255,.06); border-radius:20px; padding:18px; }
     .stat{ display:flex; align-items:center; gap:.75rem; padding:.75rem 1rem; border-radius:14px;
            background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.06); }
-    .ring{ box-shadow: 0 0 0 4px var(--ring); }
     .hidden{ display:none !important; }
     a, a:hover{ color:#93c5fd; }
-
-    /* table */
     table.table-dark{ --bs-table-bg: rgba(17,24,39,.6); --bs-table-striped-bg: rgba(255,255,255,.03); }
   </style>
 </head>
 <body>
   <div class="container py-4">
 
-    <!-- ======= HEADER / HERO ======= -->
+    <!-- HEADER / HERO -->
     <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
       <div>
         <div class="brand h3 mb-1">Clinic Marketing Dashboard</div>
-        <div class="muted">Pola penyakit & peratusan — agregat, **tanpa PII**</div>
+        <div class="muted">Pola penyakit & peratusan — agregat, tanpa PII</div>
       </div>
       <div class="d-flex gap-2 align-items-center">
         <span id="whoami" class="muted small"></span>
@@ -75,7 +60,7 @@
       <div class="row align-items-center g-3">
         <div class="col-lg-8">
           <h4 class="mb-1">Gambaran Kesihatan Komuniti Bulan Ini</h4>
-          <div class="muted">Lihat kategori penyakit dominan untuk kempen marketing yang tepat sasaran — terus dari catatan konsultasi doktor.</div>
+          <div class="muted">Lihat kategori dominan untuk kempen marketing — data dari catatan konsultasi doktor.</div>
         </div>
         <div class="col-lg-4 text-lg-end">
           <button class="btn btn-primary btn-sm" id="btnRefresh"><i class="bi bi-arrow-repeat"></i> Segarkan Bulan Ini</button>
@@ -83,19 +68,17 @@
       </div>
     </div>
 
-    <!-- ======= SIGN-IN GATE ======= -->
+    <!-- SIGN-IN GATE -->
     <div id="signinCard" class="card p-4 text-center mb-4">
       <h4 class="mb-2">Akses Terhad</h4>
       <p class="muted mb-3">Log masuk dengan akaun Google staf klinik untuk melihat dashboard.</p>
-      <div id="gsiBtn" class="d-inline-block ring"></div>
+      <div id="gsiBtn" class="d-inline-block"></div>
       <div id="signinMsg" class="small text-danger mt-3"></div>
-      <div class="small muted mt-2">*Hanya emel yang diluluskan di backend akan diterima.</div>
+      <div class="small muted mt-2">*Akses disahkan di pelayan; tiada data dipaparkan tanpa kebenaran.</div>
     </div>
 
-    <!-- ======= DASHBOARD ======= -->
+    <!-- DASHBOARD -->
     <div id="dashboard" class="hidden">
-
-      <!-- Controls + KPIs -->
       <div class="row g-3 mb-3">
         <div class="col-12 col-lg-5">
           <div class="card p-3 h-100">
@@ -118,36 +101,19 @@
             <div class="mt-1 small muted" id="lastUpdated"></div>
           </div>
         </div>
-
         <div class="col-12 col-lg-7">
           <div class="card p-3 h-100">
             <h5 class="mb-3">Sorotan Bulan Ini</h5>
             <div class="row g-3">
-              <div class="col-12 col-md-4">
-                <div class="stat">
-                  <div class="chip">Labeled</div>
-                  <div class="ms-auto h5 mb-0" id="kpiLabeled">-</div>
-                </div>
-              </div>
-              <div class="col-12 col-md-4">
-                <div class="stat">
-                  <div class="chip">Kategori</div>
-                  <div class="ms-auto h5 mb-0" id="kpiCategories">-</div>
-                </div>
-              </div>
-              <div class="col-12 col-md-4">
-                <div class="stat">
-                  <div class="chip">Top</div>
-                  <div class="ms-auto h6 mb-0" id="kpiTop">-</div>
-                </div>
-              </div>
+              <div class="col-12 col-md-4"><div class="stat"><div class="chip">Labeled</div><div class="ms-auto h5 mb-0" id="kpiLabeled">-</div></div></div>
+              <div class="col-12 col-md-4"><div class="stat"><div class="chip">Kategori</div><div class="ms-auto h5 mb-0" id="kpiCategories">-</div></div></div>
+              <div class="col-12 col-md-4"><div class="stat"><div class="chip">Top</div><div class="ms-auto h6 mb-0" id="kpiTop">-</div></div></div>
             </div>
-            <div class="mt-2 small muted">“Labeled” = jumlah lawatan yang berjaya dipadankan dengan ≥1 kategori.</div>
+            <div class="mt-2 small muted">“Labeled” = jumlah lawatan yang dipadankan ≥ 1 kategori.</div>
           </div>
         </div>
       </div>
 
-      <!-- Charts -->
       <div class="row g-3 mb-3">
         <div class="col-12 col-xl-6">
           <div class="card p-3">
@@ -155,12 +121,7 @@
               <h5 class="mb-3">Peratus Mengikut Kategori</h5>
               <span class="muted small" id="legendPeriod1"></span>
             </div>
-            <div class="position-relative">
-              <canvas id="chartDonut" height="260"></canvas>
-              <div id="spin1" class="position-absolute top-50 start-50 translate-middle hidden">
-                <div class="spinner-border text-light" role="status" aria-hidden="true"></div>
-              </div>
-            </div>
+            <canvas id="chartDonut" height="260"></canvas>
           </div>
         </div>
         <div class="col-12 col-xl-6">
@@ -169,48 +130,41 @@
               <h5 class="mb-3">Top Kategori (Kiraan)</h5>
               <span class="muted small" id="legendPeriod2"></span>
             </div>
-            <div class="position-relative">
-              <canvas id="chartBar" height="260"></canvas>
-              <div id="spin2" class="position-absolute top-50 start-50 translate-middle hidden">
-                <div class="spinner-border text-light" role="status" aria-hidden="true"></div>
-              </div>
-            </div>
+            <canvas id="chartBar" height="260"></canvas>
           </div>
         </div>
       </div>
 
-      <!-- Table -->
       <div class="card p-3 mb-5">
         <h5 class="mb-3">Jadual Perincian</h5>
         <div class="table-responsive">
           <table class="table table-dark table-striped table-hover align-middle" id="tbl">
             <thead>
-            <tr>
-              <th style="width:60px;">#</th>
-              <th>Kategori</th>
-              <th style="width:140px;">Kod</th>
-              <th style="width:140px;">Kiraan</th>
-              <th style="width:140px;">Peratus</th>
-            </tr>
+              <tr>
+                <th style="width:60px;">#</th>
+                <th>Kategori</th>
+                <th style="width:140px;">Kod</th>
+                <th style="width:140px;">Kiraan</th>
+                <th style="width:140px;">Peratus</th>
+              </tr>
             </thead>
             <tbody></tbody>
           </table>
         </div>
       </div>
 
-      <footer class="text-center muted small">© Klinik — Dashboard agregat (tanpa PII). Semua akses disahkan di pelayan.</footer>
+      <footer class="text-center muted small">© Klinik — Dashboard agregat (tanpa PII). Akses disahkan di pelayan.</footer>
     </div>
   </div>
 
-  <!-- ============ APP ============ -->
-<script>
+  <!-- APP SCRIPT (inline dibenarkan melalui nonce) -->
+  <script nonce="r4nd0m123">
   /*** KONFIG — ISI NILAI ANDA ***/
-  const CLIENT_ID   = '366415747851-umhhc3r11chpg4stiqailac1rq7klrrp.apps.googleusercontent.com'; // Gantikan jika perlu
-  const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxkmVWcorPPwWmIXN-lFPJ8wucqyKgqwrfiD4ZBqRYl1gKOcRoM7oXNzSO_XPLYZ8CL/exec'; // /exec
+  const CLIENT_ID   = '366415747851-umhhc3r11chpg4stiqailac1rq7klrrp.apps.googleusercontent.com';
+  const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxkmVWcorPPwWmIXN-lFPJ8wucqyKgqwrfiD4ZBqRYl1gKOcRoM7oXNzSO_XPLYZ8CL/exec';
 
   /*** STATE ***/
-  let ID_TOKEN = null; // Google ID token (tidak disimpan kekal)
-  let donutChart, barChart;
+  let ID_TOKEN = null; let donutChart, barChart;
 
   /*** HELPERS ***/
   const $ = (q) => document.querySelector(q);
@@ -220,64 +174,38 @@
 
   /*** GOOGLE SSO ***/
   window.onload = () => {
-    // Keselamatan: pastikan objek GIS wujud
     if (!window.google || !google.accounts || !google.accounts.id) {
-      $('#signinMsg').textContent = 'Ralat memuatkan Google SSO. Semak sambungan internet.';
-      return;
+      $('#signinMsg').textContent = 'Ralat memuatkan Google SSO. Semak sambungan internet.'; return;
     }
-    google.accounts.id.initialize({
-      client_id: CLIENT_ID,
-      callback: onSignIn,
-      auto_select: false,
-      ux_mode: 'popup',
-      context: 'signin'
-    });
+    google.accounts.id.initialize({ client_id: CLIENT_ID, callback: onSignIn, auto_select:false, ux_mode:'popup', context:'signin' });
     google.accounts.id.renderButton($('#gsiBtn'), { theme:'outline', size:'large', shape:'pill' });
     $('#btnSignOut').addEventListener('click', signOut);
 
-    // Tarikh lalai = bulan semasa
-    const d = new Date();
-    const s = new Date(d.getFullYear(), d.getMonth(), 1);
-    const e = new Date(d.getFullYear(), d.getMonth()+1, 0);
+    const d=new Date(), s=new Date(d.getFullYear(), d.getMonth(), 1), e=new Date(d.getFullYear(), d.getMonth()+1, 0);
     $('#startDate').value = s.toISOString().slice(0,10);
-    $('#endDate').value = e.toISOString().slice(0,10);
+    $('#endDate').value   = e.toISOString().slice(0,10);
 
-    // Events
     $('#btnApplyRange').addEventListener('click', applyRange);
     $('#btnRefresh').addEventListener('click', refreshThisMonth);
     $('#btnExport').addEventListener('click', exportFromTable);
   };
 
   function onSignIn(resp){
-    try{
-      ID_TOKEN = resp.credential;
-      $('#signinMsg').textContent = '';
-      $('#whoami').textContent = 'Log masuk berjaya';
-      hide($('#signinCard'));
-      show($('#dashboard'));
-      refreshThisMonth();
-      $('#btnSignOut').classList.remove('hidden');
-    } catch(e){
-      $('#signinMsg').textContent = 'Log masuk gagal. Cuba lagi.';
-      console.error(e);
-    }
+    try{ ID_TOKEN = resp.credential; $('#signinMsg').textContent=''; $('#whoami').textContent='Log masuk berjaya';
+      hide($('#signinCard')); show($('#dashboard')); refreshThisMonth(); $('#btnSignOut').classList.remove('hidden');
+    }catch(e){ $('#signinMsg').textContent='Log masuk gagal. Cuba lagi.'; console.error(e); }
   }
   function signOut(){ ID_TOKEN = null; location.reload(); }
 
-  /*** BACKEND (gunakan text/plain supaya tiada preflight OPTIONS) ***/
+  /*** BACKEND (guna text/plain supaya tiada preflight OPTIONS) ***/
   async function callAPI(action, payload){
     if (!ID_TOKEN) throw new Error('Belum log masuk');
     const res = await fetch(BACKEND_URL, {
-      method: 'POST',
-      mode: 'cors',
-      credentials: 'omit',
-      headers: { 'Content-Type':'text/plain' },
+      method:'POST', mode:'cors', credentials:'omit',
+      headers:{ 'Content-Type':'text/plain' },
       body: JSON.stringify({ action, id_token: ID_TOKEN, payload })
     });
-    if (!res.ok){
-      const t = await res.text();
-      throw new Error('API error: ' + t);
-    }
+    if (!res.ok){ throw new Error('API error: ' + await res.text()); }
     return res.json();
   }
 
@@ -294,101 +222,54 @@
   function toUIRows(rows){ return (rows||[]).map(r=>({ code:r[4], name:r[5], count:r[6], pct:r[7] })); }
 
   function drawDonut(list){
-    const ctx = document.getElementById('chartDonut');
-    const labels = list.map(d=>d.name), values = list.map(d=>d.pct);
+    const ctx=$('#chartDonut'); const labels=list.map(d=>d.name), values=list.map(d=>d.pct);
     if (donutChart) donutChart.destroy();
-    donutChart = new Chart(ctx, {
-      type:'doughnut',
-      data:{ labels, datasets:[{ data: values }] },
-      options:{
-        plugins:{ legend:{ labels:{ color:'#e5e7eb' } }, tooltip:{ callbacks:{ label:(c)=>`${c.label}: ${c.raw}%` } } },
-        cutout:'60%'
-      }
-    });
+    donutChart=new Chart(ctx,{ type:'doughnut', data:{ labels, datasets:[{ data:values }] },
+      options:{ plugins:{ legend:{ labels:{ color:'#e5e7eb' } }, tooltip:{ callbacks:{ label:(c)=>`${c.label}: ${c.raw}%` } } }, cutout:'60%' } });
   }
   function drawBar(list){
-    const ctx = document.getElementById('chartBar');
-    const labels = list.map(d=>d.name), values = list.map(d=>d.count);
+    const ctx=$('#chartBar'); const labels=list.map(d=>d.name), values=list.map(d=>d.count);
     if (barChart) barChart.destroy();
-    barChart = new Chart(ctx, {
-      type:'bar',
-      data:{ labels, datasets:[{ data: values }] },
-      options:{
-        plugins:{ legend:{ display:false } },
-        scales:{ x:{ ticks:{ color:'#e5e7eb' } }, y:{ ticks:{ color:'#e5e7eb' } } }
-      }
-    });
+    barChart=new Chart(ctx,{ type:'bar', data:{ labels, datasets:[{ data:values }] },
+      options:{ plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{ color:'#e5e7eb' } }, y:{ ticks:{ color:'#e5e7eb' } } } } });
   }
-
   function renderTable(list){
-    const tbody = $('#tbl tbody'); tbody.innerHTML='';
-    list.forEach((d,i)=>{
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${i+1}</td><td>${d.name}</td><td>${d.code}</td><td>${d.count}</td><td>${d.pct}%</td>`;
-      tbody.appendChild(tr);
-    });
+    const tbody=$('#tbl tbody'); tbody.innerHTML='';
+    list.forEach((d,i)=>{ const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${i+1}</td><td>${d.name}</td><td>${d.code}</td><td>${d.count}</td><td>${d.pct}%</td>`; tbody.appendChild(tr); });
   }
 
   /*** FLOWS ***/
   async function refreshThisMonth(){
-    const d = new Date(); const y = d.getFullYear(); const m = d.getMonth()+1;
-    $('#rangeInfo').textContent = 'Mengira bulan ini…';
-    $('#legendPeriod1').textContent = ''; $('#legendPeriod2').textContent = '';
-    show($('#spin1')); show($('#spin2'));
-    try{
-      const res = await callAPI('compute_month', { year: y, month: m });
-      setKPIs(res);
-      const list = toUIRows(res.rows).sort((a,b)=>b.count-a.count);
-      drawDonut(list);
-      drawBar(list.slice(0,10));
-      renderTable(list);
-      $('#rangeInfo').textContent = `Julat: ${res.start} → ${res.end}`;
-      $('#legendPeriod1').textContent = fmtPeriod(res.start, res.end);
-      $('#legendPeriod2').textContent = fmtPeriod(res.start, res.end);
-    }catch(err){
-      $('#rangeInfo').textContent = 'Ralat: ' + err.message;
-      console.error(err);
-    }finally{
-      hide($('#spin1')); hide($('#spin2'));
-    }
+    const d=new Date(), y=d.getFullYear(), m=d.getMonth()+1;
+    $('#rangeInfo').textContent='Mengira bulan ini…'; try{
+      const res=await callAPI('compute_month',{year:y,month:m});
+      setKPIs(res); const list=toUIRows(res.rows).sort((a,b)=>b.count-a.count);
+      drawDonut(list); drawBar(list.slice(0,10)); renderTable(list);
+      $('#rangeInfo').textContent=`Julat: ${res.start} → ${res.end}`;
+      $('#legendPeriod1').textContent = `${res.start} → ${res.end}`;
+      $('#legendPeriod2').textContent = `${res.start} → ${res.end}`;
+    }catch(err){ $('#rangeInfo').textContent='Ralat: '+err.message; console.error(err); }
   }
-
   async function applyRange(){
-    const s = $('#startDate').value, e = $('#endDate').value;
-    if (!s || !e){ alert('Sila pilih tarikh mula & tamat.'); return; }
-    $('#rangeInfo').textContent = 'Mengira julat tarikh…';
-    $('#legendPeriod1').textContent = ''; $('#legendPeriod2').textContent = '';
-    show($('#spin1')); show($('#spin2'));
-    try{
-      const res = await callAPI('compute_range', { start: s, end: e });
-      setKPIs(res);
-      const list = toUIRows(res.rows).sort((a,b)=>b.count-a.count);
-      drawDonut(list);
-      drawBar(list.slice(0,10));
-      renderTable(list);
-      $('#rangeInfo').textContent = `Julat: ${res.start} → ${res.end}`;
-      $('#legendPeriod1').textContent = fmtPeriod(res.start, res.end);
-      $('#legendPeriod2').textContent = fmtPeriod(res.start, res.end);
-    }catch(err){
-      $('#rangeInfo').textContent = 'Ralat: ' + err.message;
-      console.error(err);
-    }finally{
-      hide($('#spin1')); hide($('#spin2'));
-    }
+    const s=$('#startDate').value, e=$('#endDate').value; if(!s||!e){alert('Sila pilih tarikh mula & tamat.');return;}
+    $('#rangeInfo').textContent='Mengira julat tarikh…'; try{
+      const res=await callAPI('compute_range',{start:s,end:e});
+      setKPIs(res); const list=toUIRows(res.rows).sort((a,b)=>b.count-a.count);
+      drawDonut(list); drawBar(list.slice(0,10)); renderTable(list);
+      $('#rangeInfo').textContent=`Julat: ${res.start} → ${res.end}`;
+      $('#legendPeriod1').textContent = `${res.start} → ${res.end}`;
+      $('#legendPeriod2').textContent = `${res.start} → ${res.end}`;
+    }catch(err){ $('#rangeInfo').textContent='Ralat: '+err.message; console.error(err); }
   }
 
   /*** EXPORT ***/
   function exportFromTable(){
-    const rows = Array.from(document.querySelectorAll('#tbl tbody tr')).map(tr=>{
-      const t = tr.querySelectorAll('td');
-      return { name:t[1].textContent, code:t[2].textContent, count:+t[3].textContent, pct:parseFloat(t[4].textContent) };
-    });
-    const header = ['category','code','count','percentage'];
-    const csv = [header].concat(rows.map(d=>[d.name,d.code,d.count,d.pct])).map(r=>r.join(',')).join('\n');
-    const url = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
-    const a = document.createElement('a'); a.href=url; a.download='marketing_summary.csv'; a.click();
-    URL.revokeObjectURL(url);
+    const rows=[...document.querySelectorAll('#tbl tbody tr')].map(tr=>{const t=tr.querySelectorAll('td');
+      return { name:t[1].textContent, code:t[2].textContent, count:+t[3].textContent, pct:parseFloat(t[4].textContent) };});
+    const csv=[['category','code','count','percentage']].concat(rows.map(d=>[d.name,d.code,d.count,d.pct])).map(r=>r.join(',')).join('\n');
+    const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); const a=document.createElement('a'); a.href=url; a.download='marketing_summary.csv'; a.click(); URL.revokeObjectURL(url);
   }
-</script>
+  </script>
 </body>
 </html>
