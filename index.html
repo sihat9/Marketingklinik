@@ -1,33 +1,34 @@
 <!DOCTYPE html>
 <html lang="ms">
 <head>
-  <!-- === SECURITY (CSP via <meta>) ===
-       Nota: 'frame-ancestors' tak berfungsi dalam <meta>, jadi tidak disertakan. -->
+  <!-- ================= SECURITY (CSP via <meta>) =================
+       Nota: 'frame-ancestors' tidak berfungsi dalam <meta>, jadi tidak disertakan. -->
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none';
                  script-src 'self' 'nonce-r4nd0m123' https://accounts.google.com https://accounts.gstatic.com https://cdn.jsdelivr.net;
                  connect-src https://script.google.com https://script.googleusercontent.com https://cdn.jsdelivr.net;
-                 style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://accounts.google.com;
-                 img-src 'self' data: https://accounts.google.com;
+                 style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://accounts.google.com https://accounts.gstatic.com;
+                 img-src 'self' data: https://accounts.google.com https://accounts.gstatic.com;
                  font-src 'self' https://cdn.jsdelivr.net;
                  frame-src https://accounts.google.com;
                  base-uri 'none'; form-action 'none';" />
+  <!-- Benarkan popup daripada Google SSO -->
   <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin-allow-popups">
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), autoplay=(), fullscreen=()" />
 
-  <!-- === META === -->
+  <!-- ================= META ================= -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Clinic Marketing Dashboard</title>
 
-  <!-- === ASSETS === -->
+  <!-- ================= ASSETS ================= -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-  <!-- === THEME: LIGHT === -->
+  <!-- ================= THEME: LIGHT ================= -->
   <style>
     :root{
       --bg:#ffffff; --muted-bg:#f8fafc; --card:#ffffff; --border:#e5e7eb;
@@ -173,11 +174,11 @@
     </div>
   </div>
 
-  <!-- === APP (inline dibenarkan melalui nonce) === -->
+  <!-- ================= APP (inline dibenarkan melalui nonce) ================= -->
   <script nonce="r4nd0m123">
-  /*** KONFIG — GUNA NILAI ANDA YANG SUDAH BERFUNGSI ***/
-  const CLIENT_ID   = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com'; // letak nilai anda yang sedang digunakan
-  const BACKEND_URL = 'https://script.google.com/macros/s/…/exec';        // letak URL /exec yang sedang digunakan
+  /*** KONFIG — MASUKKAN NILAI ANDA ***/
+  const CLIENT_ID   = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';   // <-- isi client ID anda
+  const BACKEND_URL = 'https://script.google.com/macros/s/…/exec';          // <-- isi URL /exec anda
 
   /*** STATE ***/
   let ID_TOKEN = null; let donutChart, barChart;
@@ -193,7 +194,7 @@
     if (!window.google || !google.accounts || !google.accounts.id) {
       $('#signinMsg').textContent = 'Ralat memuatkan Google SSO. Semak sambungan internet.'; return;
     }
-    // Pastikan "Authorized JavaScript origins" di OAuth Client mengandungi origin laman ini (cth: https://username.github.io)
+    // Penting: "Authorized JavaScript origins" di OAuth Client MESTI mengandungi origin laman ini (contoh: https://username.github.io)
     google.accounts.id.initialize({ client_id: CLIENT_ID, callback: onSignIn, auto_select:false, ux_mode:'popup', context:'signin' });
     google.accounts.id.renderButton($('#gsiBtn'), { theme:'outline', size:'large', shape:'pill' });
     $('#btnSignOut').addEventListener('click', signOut);
@@ -290,7 +291,7 @@
 
   /*** EXPORT ***/
   function exportFromTable(){
-    const rows=[...document.querySelectorAll('#tbl tbody tr')].map(tr=>{const t=tr.querySelectorAll('td');
+    const rows=[...document.querySelectorAll('#tbl tbody tr')).map(tr=>{const t=tr.querySelectorAll('td');
       return { name:t[1].textContent, code:t[2].textContent, count:+t[3].textContent, pct:parseFloat(t[4].textContent) };});
     const csv=[['category','code','count','percentage']].concat(rows.map(d=>[d.name,d.code,d.count,d.pct])).map(r=>r.join(',')).join('\n');
     const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); const a=document.createElement('a'); a.href=url; a.download='marketing_summary.csv'; a.click(); URL.revokeObjectURL(url);
