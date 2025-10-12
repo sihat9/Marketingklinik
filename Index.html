@@ -1,0 +1,335 @@
+/**
+ * CLINIC MARKETING DASHBOARD — SECURE BACKEND (Apps Script)
+ * - Verifies Google ID token (SSO) → whitelist email -> returns ONLY aggregates (no PII)
+ * - Pulls Yezza data (registrations + consultations) securely (server-side)
+ * - Classifies free-text notes into categories via Taxonomy (regex)
+ * - Writes ONLY aggregates into Google Sheets
+ * - Auto-setup sheets on first run
+ */
+
+/** ====== CONFIG (via Script Properties — REQUIRED) ======
+ * Project Settings → Script properties → Add property
+ *  - YEZZA_TOKEN     = <your Yezza API token>
+ *  - CLINIC_SLUG     = <your clinic slug, e.g. klinikcms>
+ *  - CLIENT_ID       = <Google OAuth Web Client ID (front-end)>
+ *  - ALLOWED_EMAILS  = amiruladlije@gmail.com            (comma-separated)
+ *  - ALLOWED_DOMAIN  =                                  (optional; leave blank if not using)
+ *  - ALLOWED_ORIGIN  = https://YOUR_GITHUB_USERNAME.github.io  (GitHub Pages origin)
+ * Optional:
+ *  - STORE_UNMAPPED  = false   (default=false; set true to log sanitized unknown terms)
+ */
+
+const TZ = 'Asia/Kuala_Lumpur';
+const BASE_URL = 'https://api2.yezza.io';
+
+function prop_(k, d='') { return (PropertiesService.getScriptProperties().getProperty(k) || d).trim(); }
+function getToken_()     { return prop_('YEZZA_TOKEN'); }
+function getClinic_()    { return prop_('CLINIC_SLUG'); }
+function getClientId_()  { return prop_('CLIENT_ID'); }
+function getAllowedOrigin_(){ return prop_('ALLOWED_ORIGIN', '*'); } // set specific origin in properties
+function getAllowedEmails_(){ return prop_('ALLOWED_EMAILS'); }
+function getAllowedDomain_(){ return prop_('ALLOWED_DOMAIN'); }
+function storeUnmapped_(){ return String(prop_('STORE_UNMAPPED','false')).toLowerCase() === 'true'; }
+
+/** ---------- CORS helper ---------- */
+function cors_(out) {
+  try { out.setHeader('Access-Control-Allow-Origin', getAllowedOrigin_()); } catch (e) {}
+  try { out.setHeader('Vary', 'Origin'); } catch (e) {}
+  try { out.setHeader('Access-Control-Allow-Headers', 'Content-Type'); } catch (e) {}
+  try { out.setHeader('Access-Control-Allow-Methods', 'POST'); } catch (e) {}
+  return out;
+}
+// NOTE: Avoid preflight by using text/plain from front-end; OPTIONS handler not needed.
+
+/** ---------- HTTP ENTRY (POST only) ---------- */
+function doPost(e) {
+  // Expect Content-Type: text/plain with JSON string body (avoids CORS preflight)
+  let body = {};
+  try { body = JSON.parse(e.postData && e.postData.contents || '{}'); } catch (err) { /* ignore */ }
+
+  const action   = body.action;
+  const id_token = body.id_token;
+  const payload  = body.payload || {};
+
+  try {
+    // 1) Verify Google ID token
+    const info = verifyIdToken_(id_token); // {email, hd, aud, email_verified, exp, ...}
+
+    // 2) Enforce domain/email allowlist
+    const allowedDomain = getAllowedDomain_();
+    if (allowedDomain && String(info.hd || '').toLowerCase() !== allowedDomain.toLowerCase()) {
+      return deny_('access_denied:domain');
+    }
+    if (getAllowedEmails_()) {
+      const allow = getAllowedEmails_().toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+      if (!allow.includes(String(info.email||'').toLowerCase())) return deny_('access_denied:email');
+    } else {
+      // Fallback hard safety: if no allowlist configured, deny
+      return deny_('access_denied:config');
+    }
+
+    // 3) Ensure sheets exist (first run)
+    ensureSetup_();
+
+    // 4) Route
+    let data;
+    if (action === 'compute_month') {
+      const year  = Number(payload.year);
+      const month = Number(payload.month);
+      data = updateSummaryForMonth_(year, month);
+    } else if (action === 'compute_range') {
+      const start = new Date(payload.start);
+      const end   = new Date(payload.end);
+      data = updateSummaryForRange_(start, end);
+    } else if (action === 'get_summary_month') {
+      const year  = Number(payload.year);
+      const month = Number(payload.month);
+      data = api_getSummaryMonth(year, month);
+    } else if (action === 'get_summary_range') {
+      const start = String(payload.start), end = String(payload.end);
+      data = api_getSummaryRange(start, end);
+    } else {
+      return deny_('unknown_action');
+    }
+
+    return cors_(ContentService
+      .createTextOutput(JSON.stringify(data))
+      .setMimeType(ContentService.MimeType.JSON));
+
+  } catch (err) {
+    // Generic message; do not leak internals
+    return cors_(ContentService
+      .createTextOutput(JSON.stringify({ error: 'server_error' }))
+      .setMimeType(ContentService.MimeType.JSON));
+  }
+}
+
+function deny_(msg) {
+  return cors_(ContentService
+    .createTextOutput(JSON.stringify({ error: msg }))
+    .setMimeType(ContentService.MimeType.JSON));
+}
+
+/** ---------- VERIFY GOOGLE ID TOKEN ---------- */
+function verifyIdToken_(idToken) {
+  if (!idToken) throw new Error('missing_token');
+  const url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken);
+  const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+  if (resp.getResponseCode() !== 200) throw new Error('invalid_token');
+  const info = JSON.parse(resp.getContentText());
+  if (String(info.email_verified) !== 'true') throw new Error('email_not_verified');
+  const aud = String(info.aud || '');
+  if (aud !== getClientId_()) throw new Error('aud_mismatch');
+  return info; // { email, hd, aud, ... }
+}
+
+/** ---------- SHEETS SETUP ---------- */
+function ensureSetup_() {
+  const ss = SpreadsheetApp.getActive();
+  // Taxonomy
+  let sh = ss.getSheetByName('Taxonomy') || ss.insertSheet('Taxonomy');
+  if (sh.getLastRow() === 0) {
+    sh.appendRow(['category_code','category_name','regex_patterns']);
+    const samples = [
+      ['URTI','Jangkitan Pernafasan Atas','demam|selsema|selesema|flu|influenza|batuk|sakit tekak|urti'],
+      ['INFLUENZA','Influenza','\\b(influenza|flu)(?!\\s*(shot|vaksin|vaccine))'],
+      ['GI','Gastrointestinal','cirit|muntah|loose stool|diarrh(oe|ea)a|gastr(it|)ik|sakit perut|perut'],
+      ['MSK','Muskuloskeletal','sakit (belakang|pinggang|kaki|bahu|tangan)|msk|sprain|strain|terseliuh'],
+      ['DERM','Kulit / Dermatologi','ruam|gatal|eczema|dermatitis|kurap|tinea|tangan kaki & mulut|hfmd'],
+      ['EYE','Mata','konjunktivit|conjunctiv|mata merah|iritasi mata'],
+      ['INJ','Trauma/Cedera','luka|jatuh|terhantuk|terpotong|terseliuh|lebam|fraktur|sprain|strain']
+    ];
+    sh.getRange(2,1,samples.length,3).setValues(samples);
+  }
+  // MarketingSummary
+  sh = ss.getSheetByName('MarketingSummary') || ss.insertSheet('MarketingSummary');
+  if (sh.getLastRow() === 0) {
+    sh.appendRow(['year','month','start_date','end_date','category_code','category_name','count','percentage']);
+  } else {
+    // ensure headers correct
+    const hdr = sh.getRange(1,1,1,8).getValues()[0];
+    const want = ['year','month','start_date','end_date','category_code','category_name','count','percentage'];
+    if (hdr.join('|') !== want.join('|')) { sh.clear(); sh.appendRow(want); }
+  }
+  // UnmappedTerms (sanitized, optional)
+  sh = ss.getSheetByName('UnmappedTerms') || ss.insertSheet('UnmappedTerms');
+  if (sh.getLastRow() === 0) sh.appendRow(['timestamp','text_excerpt','note_length']);
+}
+
+/** ---------- UTIL ---------- */
+function fmtDate_(d){ return Utilities.formatDate(d, TZ, 'yyyy-MM-dd'); }
+function monthRange_(year, month1to12){
+  const start = new Date(year, month1to12-1, 1);
+  const end   = new Date(year, month1to12, 0);
+  return { start, end };
+}
+
+/** ---------- YEZZA API ---------- */
+function yezzaFetch_(path, params={}, method='get', body) {
+  const token  = getToken_();
+  const clinic = getClinic_();
+  if (!token || !clinic) throw new Error('config_missing');
+
+  const qs = Object.keys(params).length
+    ? '?' + Object.entries(params).map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&')
+    : '';
+  const res = UrlFetchApp.fetch(BASE_URL + path + qs, {
+    method: method.toUpperCase(),
+    headers: { 'Authorization': 'Token ' + token, 'Content-Type': 'application/json' },
+    muteHttpExceptions: true,
+    payload: body ? JSON.stringify(body) : null
+  });
+  const code = res.getResponseCode();
+  if (code < 200 || code >= 300) throw new Error('http_' + code);
+  const txt = res.getContentText();
+  try { return JSON.parse(txt); } catch(e){ return txt; }
+}
+
+function listRegistrations_(startStr, endStr, pageSize=200){
+  const clinic = getClinic_();
+  let page = 1, out = [];
+  while (true) {
+    const r = yezzaFetch_(`/clinics/${clinic}/registrations`, { date__gte:startStr, date__lte:endStr, page, page_size:pageSize });
+    const arr = r.results || r || [];
+    out = out.concat(arr);
+    if (!r.next) break;
+    page++; if (page > 50) break; // safety cap
+  }
+  return out;
+}
+
+function getConsultation_(pid){
+  const clinic = getClinic_();
+  return yezzaFetch_(`/clinics/${clinic}/consultations/${pid}`);
+}
+
+/** ---------- TAXONOMY / CLASSIFICATION ---------- */
+function loadTaxonomy_(){
+  const sh = SpreadsheetApp.getActive().getSheetByName('Taxonomy');
+  const data = sh.getDataRange().getValues();
+  const out = [];
+  for (let i=1;i<data.length;i++){
+    const [code,name,patterns] = data[i];
+    if (!code || !patterns) continue;
+    out.push({ code, name, re: new RegExp(patterns, 'i') });
+  }
+  return out;
+}
+function normalize_(s){ return (s||'').toString().toLowerCase().normalize('NFKD'); }
+function hasNegationAround_(text, idx){
+  const left = text.slice(Math.max(0, idx-40), idx);
+  return /(\\b(tak|tidak|tiada|no|bukan|x)\\b)/i.test(left);
+}
+function classifyText_(blob, taxonomy){
+  const text = normalize_(blob);
+  const hit = new Set();
+  for (const t of taxonomy){
+    t.re.lastIndex = 0;
+    let m, found=false;
+    while ((m = t.re.exec(text)) !== null) {
+      const i = m.index || 0;
+      if (!hasNegationAround_(text, i)) { found = true; break; }
+    }
+    if (found) hit.add(t.code);
+  }
+  return Array.from(hit);
+}
+
+/** ---------- SANITIZATION (for optional UnmappedTerms only) ---------- */
+function scrubPII_(s) {
+  if (!s) return '';
+  let t = String(s);
+  // mask emails
+  t = t.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi, '[email]');
+  // mask long digit sequences (IC/phones etc.)
+  t = t.replace(/\\d{4,}/g, '[num]');
+  // optional: mask names after "Nama:" etc. (light heuristic)
+  t = t.replace(/\\b(nama|name)\\s*:\\s*[^,;\\n]+/gi, '$1:[redacted]');
+  return t.slice(0, 180);
+}
+
+/** ---------- SUMMARY WRITERS ---------- */
+function ensureSummaryHeaders_(){
+  const sh = SpreadsheetApp.getActive().getSheetByName('MarketingSummary');
+  const want = ['year','month','start_date','end_date','category_code','category_name','count','percentage'];
+  const hdr = sh.getRange(1,1,1,8).getValues()[0];
+  if (hdr.join('|') !== want.join('|')) { sh.clear(); sh.appendRow(want); }
+  return sh;
+}
+
+function updateSummaryForRange_(start, end){
+  const startStr = fmtDate_(start), endStr = fmtDate_(end);
+  const regs = listRegistrations_(startStr, endStr);
+  const tax  = loadTaxonomy_();
+  const nameByCode = Object.fromEntries(tax.map(t => [t.code, t.name]));
+
+  let labeled = 0;
+  const counts = {};
+
+  for (const r of regs) {
+    const pid = r && r.pid;
+    if (!pid) continue;
+    try {
+      const c = getConsultation_(pid);
+      const blob = [c.case, c.note, (c.diagnoses || []).join(' ')].filter(Boolean).join(' ');
+      const labels = classifyText_(blob, tax);
+      if (labels.length) {
+        labeled++;
+        labels.forEach(code => counts[code] = (counts[code]||0) + 1);
+      } else if (storeUnmapped_()) {
+        const um = SpreadsheetApp.getActive().getSheetByName('UnmappedTerms');
+        um.appendRow([new Date(), scrubPII_(blob), (blob||'').length]);
+      }
+    } catch (e) {
+      // skip silently — do not log content to avoid PII leakage
+    }
+  }
+
+  // Write to MarketingSummary (delete same-range rows first)
+  const sh = ensureSummaryHeaders_();
+  const all = sh.getDataRange().getValues();
+  const keep = [all[0]];
+  for (let i=1;i<all.length;i++){
+    const row = all[i];
+    if (!(row[2] === startStr && row[3] === endStr)) keep.push(row);
+  }
+  sh.clear(); sh.getRange(1,1,keep.length,keep[0].length).setValues(keep);
+
+  const rows = Object.entries(counts).map(([code,count]) => {
+    const pct = labeled ? Math.round((count*1000)/labeled)/10 : 0;
+    return [start.getFullYear(), start.getMonth()+1, startStr, endStr, code, nameByCode[code] || code, count, pct];
+  });
+  if (rows.length) sh.getRange(sh.getLastRow()+1,1,rows.length,rows[0].length).setValues(rows);
+
+  return { start: startStr, end: endStr, labeled, rows };
+}
+
+function updateSummaryForMonth_(year, month1to12){
+  const {start, end} = monthRange_(year, month1to12);
+  return updateSummaryForRange_(start, end);
+}
+
+/** ---------- READ SUMMARY (for UI fallback) ---------- */
+function api_getSummaryMonth(year, month1to12){
+  const sh = ensureSummaryHeaders_();
+  const out = [];
+  const data = sh.getDataRange().getValues();
+  for (let i=1;i<data.length;i++){
+    const [Y,M,sd,ed,code,name,count,pct] = data[i];
+    if (Y===year && M===month1to12) out.push({ code,name,count,pct,sd,ed });
+  }
+  return out;
+}
+function api_getSummaryRange(startStr, endStr){
+  const sh = ensureSummaryHeaders_();
+  const out = [];
+  const data = sh.getDataRange().getValues();
+  for (let i=1;i<data.length;i++){
+    const [Y,M,sd,ed,code,name,count,pct] = data[i];
+    if (sd===startStr && ed===endStr) out.push({ code,name,count,pct,sd,ed });
+  }
+  return out;
+}
+
+/** ---------- ONE-TIME SETUP (optional to run manually) ---------- */
+function setup_(){ ensureSetup_(); }
