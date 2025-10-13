@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="ms">
 <head>
-  <!-- SECURITY / CSP -->
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none';
                  script-src 'self' 'nonce-r4nd0m123' https://accounts.google.com https://accounts.gstatic.com https://cdn.jsdelivr.net https://script.google.com;
@@ -14,42 +13,28 @@
   <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin-allow-popups">
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), autoplay=(), fullscreen=()" />
-
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Clinic Marketing Dashboard</title>
-
-  <!-- Assets -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-
-  <!-- LIGHT THEME -->
   <style>
-    :root{
-      --bg:#ffffff; --text:#111827; --muted:#6b7280; --card:#ffffff; --border:#e5e7eb;
-      --primary:#0d6efd; --success:#16a34a;
-    }
-    html,body{height:100%;}
-    body{ background: var(--bg); color: var(--text); }
+    :root{ --bg:#fff; --text:#111827; --muted:#6b7280; --card:#fff; --border:#e5e7eb; --primary:#0d6efd; --success:#16a34a; }
+    body{ background:var(--bg); color:var(--text); }
     .brand{ font-weight:800; letter-spacing:.2px; }
-    .muted{ color: var(--muted); }
+    .muted{ color:var(--muted); }
     .card{ background:var(--card); border:1px solid var(--border); border-radius:16px; }
-    .hero{ border:1px solid var(--border); border-radius:16px; padding:18px;
-           background:linear-gradient(180deg, rgba(13,110,253,.06), rgba(13,110,253,.02)); }
-    .stat{ display:flex; align-items:center; gap:.75rem; padding:.85rem 1rem; border-radius:12px;
-           background:#f8fafc; border:1px solid var(--border); }
+    .hero{ border:1px solid var(--border); border-radius:16px; padding:18px; background:linear-gradient(180deg, rgba(13,110,253,.06), rgba(13,110,253,.02)); }
+    .stat{ display:flex; align-items:center; gap:.75rem; padding:.85rem 1rem; border-radius:12px; background:#f8fafc; border:1px solid var(--border); }
     .chip{ padding:.35rem .65rem; border-radius:999px; background:#eef2ff; color:#1e40af; font-size:.85rem; }
-    .hidden{ display:none !important; }
-    a, a:hover{ color:#0d6efd; }
+    .hidden{ display:none!important; }
     .table thead th{ background:#f8fafc; }
   </style>
 </head>
 <body>
   <div class="container py-4">
-
-    <!-- HEADER -->
     <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
       <div>
         <div class="brand h3 mb-1">Clinic Marketing Dashboard</div>
@@ -61,7 +46,6 @@
       </div>
     </div>
 
-    <!-- HERO -->
     <div class="hero mb-4">
       <div class="row align-items-center g-3">
         <div class="col-lg-8">
@@ -74,30 +58,21 @@
       </div>
     </div>
 
-    <!-- SIGN-IN GATE -->
     <div id="signinCard" class="card p-4 text-center mb-4">
       <h5 class="mb-2">Akses Terhad</h5>
       <p class="muted mb-3">Log masuk dengan akaun Google staf klinik untuk melihat dashboard.</p>
       <div id="gsiBtn" class="d-inline-block"></div>
       <div id="signinMsg" class="small text-danger mt-3"></div>
-      <div class="small muted mt-2">*Akses hanya diberi selepas disahkan di pelayan.</div>
     </div>
 
-    <!-- DASHBOARD -->
     <div id="dashboard" class="hidden">
       <div class="row g-3 mb-3">
         <div class="col-12 col-lg-5">
           <div class="card p-3 h-100">
             <h5 class="mb-3">Julat Tarikh</h5>
             <div class="row g-2">
-              <div class="col-6">
-                <label class="form-label">Mula</label>
-                <input type="date" class="form-control" id="startDate" />
-              </div>
-              <div class="col-6">
-                <label class="form-label">Tamat</label>
-                <input type="date" class="form-control" id="endDate" />
-              </div>
+              <div class="col-6"><label class="form-label">Mula</label><input type="date" class="form-control" id="startDate"></div>
+              <div class="col-6"><label class="form-label">Tamat</label><input type="date" class="form-control" id="endDate"></div>
             </div>
             <div class="d-flex gap-2 mt-3">
               <button class="btn btn-success btn-sm" id="btnApplyRange"><i class="bi bi-clipboard2-data"></i> Kira & Kemas Kini</button>
@@ -112,15 +87,9 @@
           <div class="card p-3 h-100">
             <h5 class="mb-3">Sorotan</h5>
             <div class="row g-3">
-              <div class="col-12 col-md-4">
-                <div class="stat"><div class="chip">Labeled</div><div class="ms-auto h5 mb-0" id="kpiLabeled">-</div></div>
-              </div>
-              <div class="col-12 col-md-4">
-                <div class="stat"><div class="chip">Kategori</div><div class="ms-auto h5 mb-0" id="kpiCategories">-</div></div>
-              </div>
-              <div class="col-12 col-md-4">
-                <div class="stat"><div class="chip">Top</div><div class="ms-auto h6 mb-0" id="kpiTop">-</div></div>
-              </div>
+              <div class="col-12 col-md-4"><div class="stat"><div class="chip">Labeled</div><div class="ms-auto h5 mb-0" id="kpiLabeled">-</div></div></div>
+              <div class="col-12 col-md-4"><div class="stat"><div class="chip">Kategori</div><div class="ms-auto h5 mb-0" id="kpiCategories">-</div></div></div>
+              <div class="col-12 col-md-4"><div class="stat"><div class="chip">Top</div><div class="ms-auto h6 mb-0" id="kpiTop">-</div></div></div>
             </div>
             <div class="mt-2 small muted">“Labeled” = jumlah lawatan yang dipadankan ≥ 1 kategori.</div>
           </div>
@@ -152,15 +121,7 @@
         <h5 class="mb-3">Jadual Perincian</h5>
         <div class="table-responsive">
           <table class="table table-striped align-middle" id="tbl">
-            <thead>
-              <tr>
-                <th style="width:60px;">#</th>
-                <th>Kategori</th>
-                <th style="width:140px;">Kod</th>
-                <th style="width:140px;">Kiraan</th>
-                <th style="width:140px;">Peratus</th>
-              </tr>
-            </thead>
+            <thead><tr><th style="width:60px;">#</th><th>Kategori</th><th style="width:140px;">Kod</th><th style="width:140px;">Kiraan</th><th style="width:140px;">Peratus</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -170,148 +131,63 @@
     </div>
   </div>
 
-  <!-- APP SCRIPT -->
   <script nonce="r4nd0m123">
-  /*** KONFIG (guna nilai anda) ***/
   const CLIENT_ID   = '366415747851-umhhc3r11chpg4stiqailac1rq7klrrp.apps.googleusercontent.com';
   const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxkmVWcorPPwWmIXN-lFPJ8wucqyKgqwrfiD4ZBqRYl1gKOcRoM7oXNzSO_XPLYZ8CL/exec';
 
-  /*** STATE ***/
-  let ID_TOKEN = null; let donutChart, barChart;
+  let ID_TOKEN=null, donutChart, barChart;
+  const $ = q=>document.querySelector(q); const show=el=>el.classList.remove('hidden'); const hide=el=>el.classList.add('hidden');
+  const fmtPeriod=(s,e)=>`${s} → ${e}`;
 
-  /*** HELPERS ***/
-  const $ = (q) => document.querySelector(q);
-  const show = (el) => el.classList.remove('hidden');
-  const hide = (el) => el.classList.add('hidden');
-  const fmtPeriod = (s,e) => `${s} → ${e}`;
-
-  /*** GOOGLE SSO ***/
-  window.onload = () => {
-    if (!window.google || !google.accounts || !google.accounts.id) {
-      $('#signinMsg').textContent = 'Ralat memuatkan Google SSO. Semak sambungan internet.'; return;
-    }
-    google.accounts.id.initialize({ client_id: CLIENT_ID, callback: onSignIn, auto_select:false, ux_mode:'popup', context:'signin' });
+  window.onload=()=>{
+    if(!google?.accounts?.id){ $('#signinMsg').textContent='Ralat memuatkan Google SSO.'; return; }
+    google.accounts.id.initialize({ client_id: CLIENT_ID, callback:onSignIn, ux_mode:'popup' });
     google.accounts.id.renderButton($('#gsiBtn'), { theme:'outline', size:'large', shape:'pill' });
-    $('#btnSignOut').addEventListener('click', signOut);
+    $('#btnSignOut').addEventListener('click', ()=>location.reload());
 
-    // Tarikh lalai = bulan semasa
-    const d=new Date(), s=new Date(d.getFullYear(), d.getMonth(), 1), e=new Date(d.getFullYear(), d.getMonth()+1, 0);
-    $('#startDate').value = s.toISOString().slice(0,10);
-    $('#endDate').value   = e.toISOString().slice(0,10);
-
-    // Events
+    const d=new Date(), s=new Date(d.getFullYear(),d.getMonth(),1), e=new Date(d.getFullYear(),d.getMonth()+1,0);
+    $('#startDate').value=s.toISOString().slice(0,10); $('#endDate').value=e.toISOString().slice(0,10);
     $('#btnApplyRange').addEventListener('click', applyRange);
     $('#btnRefresh').addEventListener('click', refreshThisMonth);
     $('#btnExport').addEventListener('click', exportFromTable);
   };
 
-  function onSignIn(resp){
-    try{
-      ID_TOKEN = resp.credential;
-      $('#signinMsg').textContent = '';
-      $('#whoami').textContent = 'Log masuk berjaya';
-      hide($('#signinCard')); show($('#dashboard'));
-      refreshThisMonth();
-      $('#btnSignOut').classList.remove('hidden');
-    }catch(e){
-      $('#signinMsg').textContent = 'Log masuk gagal. Cuba lagi.'; console.error(e);
-    }
-  }
-  function signOut(){ ID_TOKEN = null; location.reload(); }
+  function onSignIn(resp){ try{ ID_TOKEN=resp.credential; $('#signinMsg').textContent=''; $('#whoami').textContent='Log masuk berjaya'; hide($('#signinCard')); show($('#dashboard')); refreshThisMonth(); }catch(e){ $('#signinMsg').textContent='Log masuk gagal.'; } }
 
-  /*** BACKEND CALLER via JSONP (elak CORS) ***/
+  /* JSONP CALLER (timeout 120s) */
   function callAPI(action, payload){
-    if (!ID_TOKEN) return Promise.reject(new Error('Belum log masuk'));
-
-    return new Promise((resolve, reject) => {
-      const cbName = '__jsonp_cb_' + Math.random().toString(36).slice(2);
-      let script; const timeout = setTimeout(() => { cleanup(); reject(new Error('Timeout panggilan API')); }, 30000);
-      function cleanup(){ clearTimeout(timeout); try{ delete window[cbName]; }catch(_){}
-        if (script && script.parentNode) script.parentNode.removeChild(script); }
-      window[cbName] = (resp) => {
-        cleanup();
-        if (resp && resp.error) return reject(new Error(resp.error + (resp.detail?(': '+resp.detail):'')));
-        resolve(resp);
-      };
-      const q = new URLSearchParams({ action, id_token: ID_TOKEN, payload: JSON.stringify(payload||{}), callback: cbName });
-      const url = BACKEND_URL + '?' + q.toString();
-      script = document.createElement('script'); script.src = url; script.async = true;
-      script.onerror = () => { cleanup(); reject(new Error('Gagal memanggil API')); };
-      document.head.appendChild(script);
+    if(!ID_TOKEN) return Promise.reject(new Error('Belum log masuk'));
+    return new Promise((resolve,reject)=>{
+      const cb='__cb_'+Math.random().toString(36).slice(2);
+      let s; const t=setTimeout(()=>{ cleanup(); reject(new Error('Timeout panggilan API')); }, 120000);
+      function cleanup(){ clearTimeout(t); try{ delete window[cb]; }catch{} s&&s.remove(); }
+      window[cb]=(r)=>{ cleanup(); if(r&&r.error) reject(new Error(r.error+(r.detail?': '+r.detail:''))); else resolve(r); };
+      const q=new URLSearchParams({action, id_token:ID_TOKEN, payload:JSON.stringify(payload||{}), callback:cb});
+      s=document.createElement('script'); s.src=BACKEND_URL+'?'+q.toString(); s.async=true; s.onerror=()=>{ cleanup(); reject(new Error('Gagal memanggil API')); }; document.head.appendChild(s);
     });
   }
 
-  /*** RENDER & CHARTS ***/
-  function setKPIs(summary){
-    const totalLabeled = summary.labeled || 0;
-    const cats = new Set((summary.rows||[]).map(r=>r[4])).size;
-    const top = (summary.rows||[]).slice().sort((a,b)=>b[6]-a[6])[0];
-    $('#kpiLabeled').textContent = totalLabeled;
-    $('#kpiCategories').textContent = cats;
-    $('#kpiTop').textContent = top ? top[5] : '-';
-    $('#lastUpdated').textContent = 'Dikemas kini: ' + new Date().toLocaleString();
-  }
-  function toUIRows(rows){ return (rows||[]).map(r=>({ code:r[4], name:r[5], count:r[6], pct:r[7] })); }
+  function setKPIs(summary){ const total=summary.labeled||0; const cats=new Set((summary.rows||[]).map(r=>r[4])).size; const top=(summary.rows||[]).slice().sort((a,b)=>b[6]-a[6])[0];
+    $('#kpiLabeled').textContent=total; $('#kpiCategories').textContent=cats; $('#kpiTop').textContent=top?top[5]:'-'; $('#lastUpdated').textContent='Dikemas kini: '+new Date().toLocaleString(); }
+  const toUIRows=rows=>(rows||[]).map(r=>({code:r[4],name:r[5],count:r[6],pct:r[7]}));
 
-  function drawDonut(list){
-    const ctx=document.getElementById('chartDonut');
-    const labels=list.map(d=>d.name), values=list.map(d=>d.pct);
-    if (donutChart) donutChart.destroy();
-    donutChart=new Chart(ctx,{ type:'doughnut', data:{ labels, datasets:[{ data: values }] },
-      options:{ plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label:(c)=>`${c.label}: ${c.raw}%` } } }, cutout:'60%' } });
-  }
-  function drawBar(list){
-    const ctx=document.getElementById('chartBar');
-    const labels=list.map(d=>d.name), values=list.map(d=>d.count);
-    if (barChart) barChart.destroy();
-    barChart=new Chart(ctx,{ type:'bar', data:{ labels, datasets:[{ data: values }] },
-      options:{ plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{} }, y:{ ticks:{} } } } });
-  }
-  function renderTable(list){
-    const tbody=$('#tbl tbody'); tbody.innerHTML='';
-    list.forEach((d,i)=>{ const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${i+1}</td><td>${d.name}</td><td>${d.code}</td><td>${d.count}</td><td>${d.pct}%</td>`;
-      tbody.appendChild(tr);
-    });
-  }
+  function drawDonut(list){ const ctx=$('#chartDonut'); const labels=list.map(d=>d.name), values=list.map(d=>d.pct);
+    donutChart&&donutChart.destroy(); donutChart=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data:values}]},options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw}%`}}},cutout:'60%'}}); }
+  function drawBar(list){ const ctx=$('#chartBar'); const labels=list.map(d=>d.name), values=list.map(d=>d.count);
+    barChart&&barChart.destroy(); barChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{data:values}]},options:{plugins:{legend:{display:false}}}}); }
+  function renderTable(list){ const tb=$('#tbl tbody'); tb.innerHTML=''; list.forEach((d,i)=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${i+1}</td><td>${d.name}</td><td>${d.code}</td><td>${d.count}</td><td>${d.pct}%</td>`; tb.appendChild(tr); }); }
 
-  /*** FLOWS ***/
-  async function refreshThisMonth(){
-    const d=new Date(); const y=d.getFullYear(); const m=d.getMonth()+1;
-    $('#rangeInfo').textContent='Mengira bulan ini…';
-    try{
-      const res = await callAPI('compute_month', { year: y, month: m });
-      setKPIs(res);
-      const list=toUIRows(res.rows).sort((a,b)=>b.count-a.count);
-      drawDonut(list); drawBar(list.slice(0,10)); renderTable(list);
-      $('#rangeInfo').textContent=`Julat: ${res.start} → ${res.end}`;
-      $('#legendPeriod1').textContent=fmtPeriod(res.start,res.end);
-      $('#legendPeriod2').textContent=fmtPeriod(res.start,res.end);
-    }catch(err){ $('#rangeInfo').textContent='Ralat: '+err.message; console.error(err); }
-  }
+  async function refreshThisMonth(){ const d=new Date(); const y=d.getFullYear(), m=d.getMonth()+1; $('#rangeInfo').textContent='Mengira bulan ini…';
+    try{ const res=await callAPI('compute_month',{year:y,month:m}); setKPIs(res); const list=toUIRows(res.rows).sort((a,b)=>b.count-a.count); drawDonut(list); drawBar(list.slice(0,10)); renderTable(list); $('#rangeInfo').textContent=`Julat: ${res.start} → ${res.end}`; $('#legendPeriod1').textContent=fmtPeriod(res.start,res.end); $('#legendPeriod2').textContent=fmtPeriod(res.start,res.end); }
+    catch(e){ $('#rangeInfo').textContent='Ralat: '+e.message; console.error(e); } }
 
-  async function applyRange(){
-    const s=$('#startDate').value, e=$('#endDate').value;
-    if(!s||!e){ alert('Sila pilih tarikh mula & tamat.'); return; }
-    $('#rangeInfo').textContent='Mengira julat tarikh…';
-    try{
-      const res = await callAPI('compute_range', { start: s, end: e });
-      setKPIs(res);
-      const list=toUIRows(res.rows).sort((a,b)=>b.count-a.count);
-      drawDonut(list); drawBar(list.slice(0,10)); renderTable(list);
-      $('#rangeInfo').textContent=`Julat: ${res.start} → ${res.end}`;
-      $('#legendPeriod1').textContent=fmtPeriod(res.start,res.end);
-      $('#legendPeriod2').textContent=fmtPeriod(res.start,res.end);
-    }catch(err){ $('#rangeInfo').textContent='Ralat: '+err.message; console.error(err); }
-  }
+  async function applyRange(){ const s=$('#startDate').value, e=$('#endDate').value; if(!s||!e){ alert('Sila pilih tarikh mula & tamat.'); return; } $('#rangeInfo').textContent='Mengira julat tarikh…';
+    try{ const res=await callAPI('compute_range',{start:s,end:e}); setKPIs(res); const list=toUIRows(res.rows).sort((a,b)=>b.count-a.count); drawDonut(list); drawBar(list.slice(0,10)); renderTable(list); $('#rangeInfo').textContent=`Julat: ${res.start} → ${res.end}`; $('#legendPeriod1').textContent=fmtPeriod(res.start,res.end); $('#legendPeriod2').textContent=fmtPeriod(res.start,res.end); }
+    catch(e){ $('#rangeInfo').textContent='Ralat: '+e.message; console.error(e); } }
 
-  /*** EXPORT ***/
-  function exportFromTable(){
-    const rows=[...document.querySelectorAll('#tbl tbody tr')].map(tr=>{const t=tr.querySelectorAll('td');
-      return { name:t[1].textContent, code:t[2].textContent, count:+t[3].textContent, pct:parseFloat(t[4].textContent) };});
+  function exportFromTable(){ const rows=[...document.querySelectorAll('#tbl tbody tr')].map(tr=>{const t=tr.querySelectorAll('td'); return {name:t[1].textContent,code:t[2].textContent,count:+t[3].textContent,pct:parseFloat(t[4].textContent)};});
     const csv=[['category','code','count','percentage']].concat(rows.map(d=>[d.name,d.code,d.count,d.pct])).map(r=>r.join(',')).join('\n');
-    const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); const a=document.createElement('a'); a.href=url; a.download='marketing_summary.csv'; a.click(); URL.revokeObjectURL(url);
-  }
+    const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); const a=document.createElement('a'); a.href=url; a.download='marketing_summary.csv'; a.click(); URL.revokeObjectURL(url); }
   </script>
 </body>
 </html>
