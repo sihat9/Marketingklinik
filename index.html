@@ -1,15 +1,11 @@
 <!DOCTYPE html>
 <html lang="ms">
 <head>
-  <!-- ========= SECURITY (CSP via <meta>) =========
-       - Benarkan GIS (accounts.google.com) untuk skrip & stylesheet
-       - Guna nonce untuk benarkan skrip inline utama
-       - Tambah cdn.jsdelivr.net dalam connect-src untuk elak ralat sourcemap di DevTools
-  -->
+  <!-- SECURITY / CSP -->
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none';
-                 script-src 'self' 'nonce-r4nd0m123' https://accounts.google.com https://accounts.gstatic.com https://cdn.jsdelivr.net;
-                 connect-src https://script.google.com https://script.googleusercontent.com https://cdn.jsdelivr.net;
+                 script-src 'self' 'nonce-r4nd0m123' https://accounts.google.com https://accounts.gstatic.com https://cdn.jsdelivr.net https://script.google.com;
+                 connect-src https://cdn.jsdelivr.net;
                  style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://accounts.google.com;
                  img-src 'self' data:;
                  font-src 'self' https://cdn.jsdelivr.net;
@@ -29,7 +25,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-  <!-- ======== LIGHT THEME (PUTIH) ======== -->
+  <!-- LIGHT THEME -->
   <style>
     :root{
       --bg:#ffffff; --text:#111827; --muted:#6b7280; --card:#ffffff; --border:#e5e7eb;
@@ -39,21 +35,11 @@
     body{ background: var(--bg); color: var(--text); }
     .brand{ font-weight:800; letter-spacing:.2px; }
     .muted{ color: var(--muted); }
-    .card{
-      background: var(--card);
-      border:1px solid var(--border);
-      border-radius: 16px;
-    }
-    .hero{
-      border:1px solid var(--border);
-      border-radius:16px;
-      padding:18px;
-      background: linear-gradient(180deg, rgba(13,110,253,.06), rgba(13,110,253,.02));
-    }
-    .stat{
-      display:flex; align-items:center; gap:.75rem; padding:.85rem 1rem; border-radius:12px;
-      background:#f8fafc; border:1px solid var(--border);
-    }
+    .card{ background:var(--card); border:1px solid var(--border); border-radius:16px; }
+    .hero{ border:1px solid var(--border); border-radius:16px; padding:18px;
+           background:linear-gradient(180deg, rgba(13,110,253,.06), rgba(13,110,253,.02)); }
+    .stat{ display:flex; align-items:center; gap:.75rem; padding:.85rem 1rem; border-radius:12px;
+           background:#f8fafc; border:1px solid var(--border); }
     .chip{ padding:.35rem .65rem; border-radius:999px; background:#eef2ff; color:#1e40af; font-size:.85rem; }
     .hidden{ display:none !important; }
     a, a:hover{ color:#0d6efd; }
@@ -127,22 +113,13 @@
             <h5 class="mb-3">Sorotan</h5>
             <div class="row g-3">
               <div class="col-12 col-md-4">
-                <div class="stat">
-                  <div class="chip">Labeled</div>
-                  <div class="ms-auto h5 mb-0" id="kpiLabeled">-</div>
-                </div>
+                <div class="stat"><div class="chip">Labeled</div><div class="ms-auto h5 mb-0" id="kpiLabeled">-</div></div>
               </div>
               <div class="col-12 col-md-4">
-                <div class="stat">
-                  <div class="chip">Kategori</div>
-                  <div class="ms-auto h5 mb-0" id="kpiCategories">-</div>
-                </div>
+                <div class="stat"><div class="chip">Kategori</div><div class="ms-auto h5 mb-0" id="kpiCategories">-</div></div>
               </div>
               <div class="col-12 col-md-4">
-                <div class="stat">
-                  <div class="chip">Top</div>
-                  <div class="ms-auto h6 mb-0" id="kpiTop">-</div>
-                </div>
+                <div class="stat"><div class="chip">Top</div><div class="ms-auto h6 mb-0" id="kpiTop">-</div></div>
               </div>
             </div>
             <div class="mt-2 small muted">“Labeled” = jumlah lawatan yang dipadankan ≥ 1 kategori.</div>
@@ -193,9 +170,9 @@
     </div>
   </div>
 
-  <!-- ========= APP SCRIPT (inline; dibenarkan oleh nonce) ========= -->
+  <!-- APP SCRIPT -->
   <script nonce="r4nd0m123">
-  /*** KONFIG — KEKALKAN NILAI ANDA ***/
+  /*** KONFIG (guna nilai anda) ***/
   const CLIENT_ID   = '366415747851-umhhc3r11chpg4stiqailac1rq7klrrp.apps.googleusercontent.com';
   const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxkmVWcorPPwWmIXN-lFPJ8wucqyKgqwrfiD4ZBqRYl1gKOcRoM7oXNzSO_XPLYZ8CL/exec';
 
@@ -242,16 +219,26 @@
   }
   function signOut(){ ID_TOKEN = null; location.reload(); }
 
-  /*** BACKEND (guna text/plain supaya tiada preflight OPTIONS) ***/
-  async function callAPI(action, payload){
-    if (!ID_TOKEN) throw new Error('Belum log masuk');
-    const res = await fetch(BACKEND_URL, {
-      method:'POST', mode:'cors', credentials:'omit',
-      headers:{ 'Content-Type':'text/plain' },
-      body: JSON.stringify({ action, id_token: ID_TOKEN, payload })
+  /*** BACKEND CALLER via JSONP (elak CORS) ***/
+  function callAPI(action, payload){
+    if (!ID_TOKEN) return Promise.reject(new Error('Belum log masuk'));
+
+    return new Promise((resolve, reject) => {
+      const cbName = '__jsonp_cb_' + Math.random().toString(36).slice(2);
+      let script; const timeout = setTimeout(() => { cleanup(); reject(new Error('Timeout panggilan API')); }, 30000);
+      function cleanup(){ clearTimeout(timeout); try{ delete window[cbName]; }catch(_){}
+        if (script && script.parentNode) script.parentNode.removeChild(script); }
+      window[cbName] = (resp) => {
+        cleanup();
+        if (resp && resp.error) return reject(new Error(resp.error + (resp.detail?(': '+resp.detail):'')));
+        resolve(resp);
+      };
+      const q = new URLSearchParams({ action, id_token: ID_TOKEN, payload: JSON.stringify(payload||{}), callback: cbName });
+      const url = BACKEND_URL + '?' + q.toString();
+      script = document.createElement('script'); script.src = url; script.async = true;
+      script.onerror = () => { cleanup(); reject(new Error('Gagal memanggil API')); };
+      document.head.appendChild(script);
     });
-    if (!res.ok){ throw new Error('API error: ' + await res.text()); }
-    return res.json();
   }
 
   /*** RENDER & CHARTS ***/
@@ -270,21 +257,15 @@
     const ctx=document.getElementById('chartDonut');
     const labels=list.map(d=>d.name), values=list.map(d=>d.pct);
     if (donutChart) donutChart.destroy();
-    donutChart=new Chart(ctx,{
-      type:'doughnut',
-      data:{ labels, datasets:[{ data: values }] },
-      options:{ plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label:(c)=>`${c.label}: ${c.raw}%` } } }, cutout:'60%' }
-    });
+    donutChart=new Chart(ctx,{ type:'doughnut', data:{ labels, datasets:[{ data: values }] },
+      options:{ plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label:(c)=>`${c.label}: ${c.raw}%` } } }, cutout:'60%' } });
   }
   function drawBar(list){
     const ctx=document.getElementById('chartBar');
     const labels=list.map(d=>d.name), values=list.map(d=>d.count);
     if (barChart) barChart.destroy();
-    barChart=new Chart(ctx,{
-      type:'bar',
-      data:{ labels, datasets:[{ data: values }] },
-      options:{ plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{} }, y:{ ticks:{} } } }
-    });
+    barChart=new Chart(ctx,{ type:'bar', data:{ labels, datasets:[{ data: values }] },
+      options:{ plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{} }, y:{ ticks:{} } } } });
   }
   function renderTable(list){
     const tbody=$('#tbl tbody'); tbody.innerHTML='';
@@ -300,7 +281,6 @@
     $('#rangeInfo').textContent='Mengira bulan ini…';
     try{
       const res = await callAPI('compute_month', { year: y, month: m });
-      if (res && res.error) throw new Error(res.error + (res.detail ? (': ' + res.detail) : ''));
       setKPIs(res);
       const list=toUIRows(res.rows).sort((a,b)=>b.count-a.count);
       drawDonut(list); drawBar(list.slice(0,10)); renderTable(list);
@@ -316,7 +296,6 @@
     $('#rangeInfo').textContent='Mengira julat tarikh…';
     try{
       const res = await callAPI('compute_range', { start: s, end: e });
-      if (res && res.error) throw new Error(res.error + (res.detail ? (': ' + res.detail) : ''));
       setKPIs(res);
       const list=toUIRows(res.rows).sort((a,b)=>b.count-a.count);
       drawDonut(list); drawBar(list.slice(0,10)); renderTable(list);
