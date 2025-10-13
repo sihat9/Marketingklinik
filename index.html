@@ -1,415 +1,422 @@
 <!DOCTYPE html>
 <html lang="ms">
 <head>
-  <!-- CSP untuk GitHub Pages + GIS + fetch ke Apps Script -->
-  <meta http-equiv="Content-Security-Policy"
-        content="
-          default-src 'none';
-          script-src 'self' 'nonce-abc123' https://accounts.google.com https://accounts.gstatic.com https://cdn.jsdelivr.net;
-          style-src   'self' 'unsafe-inline' https://cdn.jsdelivr.net https://accounts.google.com;
-          img-src     'self' data:;
-          font-src    'self' https://cdn.jsdelivr.net;
-          connect-src https://script.google.com https://script.googleusercontent.com;
-          frame-src   https://accounts.google.com;
-          base-uri 'none'; form-action 'none';">
-  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin-allow-popups">
-  <meta name="referrer" content="no-referrer" />
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Clinic Marketing Dashboard</title>
 
+  <!-- ========== SECURITY / CSP (sesuai GitHub Pages + GIS + Apps Script) ========== -->
+  <meta http-equiv="Content-Security-Policy"
+        content="
+        default-src 'none';
+        script-src 'self' 'unsafe-inline' https://accounts.google.com https://accounts.gstatic.com https://cdn.jsdelivr.net;
+        connect-src https://script.google.com https://script.googleusercontent.com https://cdn.jsdelivr.net;
+        style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+        img-src 'self' data:;
+        font-src 'self' https://cdn.jsdelivr.net;
+        frame-src https://accounts.google.com;
+        base-uri 'none'; form-action 'none';
+        " />
+  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin-allow-popups" />
+  <meta name="referrer" content="no-referrer" />
+
   <!-- UI libs -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <!-- GIS -->
+
+  <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <style>
-    body { background:#fafafa; }
-    .card { border-radius:16px; }
-    .muted{ color:#6b7280; }
-    .table thead th{ background:#f8fafc; }
-    .chip{ padding:.3rem .55rem; border-radius:999px; background:#eef2ff; color:#1e40af; font-size:.85rem; }
-    .hidden{ display:none!important; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace; }
-    .truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 340px; }
+    :root{
+      --bg:#ffffff; --text:#111827; --muted:#6b7280; --card:#fff; --border:#e5e7eb;
+      --primary:#0d6efd; --success:#16a34a; --danger:#dc3545;
+    }
+    body{background:var(--bg); color:var(--text);}
+    .card{background:var(--card); border:1px solid var(--border); border-radius:16px;}
+    .muted{color:var(--muted)}
+    .brand{font-weight:800}
+    .chip{padding:.3rem .6rem; border-radius:999px; background:#eef2ff; color:#1e40af; font-size:.85rem}
+    .hidden{display:none !important;}
+    .toolbar .btn{min-width:140px}
+    .table-fixed{table-layout:fixed}
+    .table-fixed td{word-break:break-word}
   </style>
 </head>
 <body>
-  <div class="container py-4">
-    <!-- Header -->
-    <div class="d-flex align-items-center justify-content-between mb-3">
-      <div>
-        <div class="h3 mb-1">Clinic Marketing Dashboard</div>
-        <div class="muted">Ringkasan kategori & outreach — tanpa PII di UI awam</div>
-      </div>
-      <div class="d-flex gap-2 align-items-center">
-        <span id="whoami" class="muted small">Belum log masuk</span>
-        <button id="btnSignOut" class="btn btn-outline-secondary btn-sm hidden"><i class="bi bi-box-arrow-right"></i> Keluar</button>
-      </div>
+<div class="container py-4">
+
+  <!-- Header -->
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <div class="brand h3 mb-1">Clinic Marketing Dashboard</div>
+      <div class="muted">Ringkasan kategori & outreach — tanpa PII di UI awam</div>
     </div>
-
-    <!-- Access Gate -->
-    <div id="signinCard" class="card p-4 mb-4">
-      <div class="d-flex align-items-center justify-content-between">
-        <div>
-          <h5 class="mb-2">Akses Terhad</h5>
-          <div class="muted">Log masuk dengan akaun Google staf klinik (dibenarkan) untuk menggunakan dashboard.</div>
-        </div>
-        <div id="gsiBtn"></div>
-      </div>
-      <div id="signinMsg" class="text-danger small mt-3"></div>
-    </div>
-
-    <!-- Main -->
-    <div id="app" class="hidden">
-      <!-- Controls -->
-      <div class="card p-3 mb-3">
-        <div class="row g-2 align-items-end">
-          <div class="col-12 col-md-3">
-            <label class="form-label">Mula</label>
-            <input type="date" class="form-control" id="startDate">
-          </div>
-          <div class="col-12 col-md-3">
-            <label class="form-label">Tamat</label>
-            <input type="date" class="form-control" id="endDate">
-          </div>
-          <div class="col-12 col-md-3">
-            <label class="form-label">Diagnosis (kod)</label>
-            <input type="text" class="form-control" id="diagCode" placeholder="cth: URTI">
-          </div>
-          <div class="col-12 col-md-3">
-            <label class="form-label">Kawasan (kata kunci)</label>
-            <input type="text" class="form-control" id="areaQuery" placeholder="cth: manir">
-          </div>
-
-          <div class="col-12 d-flex flex-wrap gap-2 mt-2">
-            <div class="btn-group" role="group" aria-label="Quick ranges">
-              <button class="btn btn-outline-secondary btn-sm" id="qDay">Hari ini</button>
-              <button class="btn btn-outline-secondary btn-sm" id="qMonth">Bulan ini</button>
-              <button class="btn btn-outline-secondary btn-sm" id="qYear">Tahun ini</button>
-            </div>
-
-            <button class="btn btn-warning btn-sm" id="btnSync"><i class="bi bi-arrow-repeat"></i> Sync (Yezza→Sheet)</button>
-            <button class="btn btn-primary btn-sm" id="btnAggregate"><i class="bi bi-bar-chart-line"></i> Kira Agregat</button>
-            <button class="btn btn-success btn-sm" id="btnLoadPatients"><i class="bi bi-people"></i> Muat Pesakit (ditapis)</button>
-            <button class="btn btn-outline-secondary btn-sm" id="btnExportCsv"><i class="bi bi-download"></i> Export CSV (pesakit ditapis)</button>
-
-            <!-- Placeholder untuk operasi backend seterusnya -->
-            <div class="ms-auto d-flex flex-wrap gap-2">
-              <button class="btn btn-outline-danger btn-sm" id="btnDeleteRange" title="Padam data dalam julat tarikh. (Perlu sokongan backend)"><i class="bi bi-trash"></i> Padam Julat</button>
-              <button class="btn btn-outline-dark btn-sm" id="btnSortRange"  title="Sort data ikut hari/bulan/tahun. (Perlu sokongan backend)"><i class="bi bi-sort-alpha-down"></i> Susun Data</button>
-            </div>
-          </div>
-
-          <div class="col-12 mt-2">
-            <small class="muted">Status: <span id="statusText" class="mono">-</span></small>
-          </div>
-        </div>
-      </div>
-
-      <!-- KPI -->
-      <div class="row g-3 mb-3">
-        <div class="col-12 col-md-3">
-          <div class="card p-3">
-            <div class="muted small">Labeled</div>
-            <div class="h3 mb-0" id="kpiLabeled">-</div>
-            <div class="muted small">Lawatan dipadankan ≥ 1 kategori</div>
-          </div>
-        </div>
-        <div class="col-12 col-md-3">
-          <div class="card p-3">
-            <div class="muted small">Kategori</div>
-            <div class="h3 mb-0" id="kpiCategories">-</div>
-            <div class="muted small">Bilangan kategori dikesan</div>
-          </div>
-        </div>
-        <div class="col-12 col-md-3">
-          <div class="card p-3">
-            <div class="muted small">Top</div>
-            <div class="h3 mb-0" id="kpiTop">-</div>
-            <div class="muted small">Kategori paling dominan</div>
-          </div>
-        </div>
-        <div class="col-12 col-md-3">
-          <div class="card p-3">
-            <div class="muted small">Prospek Outreach</div>
-            <div class="h3 mb-0" id="kpiOutreach">0</div>
-            <div class="muted small">Pesakit ditapis (jadual)</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Charts -->
-      <div class="row g-3 mb-3">
-        <div class="col-12 col-xl-6">
-          <div class="card p-3">
-            <div class="d-flex justify-content-between">
-              <h5 class="mb-3">Peratus Mengikut Kategori</h5>
-              <small class="muted" id="legendPeriod1">—</small>
-            </div>
-            <canvas id="chartDonut" height="260"></canvas>
-          </div>
-        </div>
-        <div class="col-12 col-xl-6">
-          <div class="card p-3">
-            <div class="d-flex justify-content-between">
-              <h5 class="mb-3">Top Kategori (Kiraan)</h5>
-              <small class="muted" id="legendPeriod2">—</small>
-            </div>
-            <canvas id="chartBar" height="260"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- Patients table -->
-      <div class="card p-3">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <h5 class="mb-0">Senarai Pesakit (ditapis)</h5>
-          <small class="muted">Hanya paparkan ringkasan — diagnosis & alamat diringkaskan.</small>
-        </div>
-        <div class="table-responsive">
-          <table class="table table-striped align-middle" id="tblPatients">
-            <thead>
-              <tr>
-                <th style="width: 90px;">Tarikh</th>
-                <th>Nama</th>
-                <th style="width: 80px;">Umur</th>
-                <th>Kawasan</th>
-                <th style="width: 120px;">Kod</th>
-                <th>Diagnose (ringkas)</th>
-                <th style="width: 140px;">Telefon</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-
-        <div class="d-flex justify-content-end gap-2 mt-2">
-          <button class="btn btn-outline-secondary btn-sm" id="btnPrev"><i class="bi bi-chevron-left"></i> Sebelum</button>
-          <button class="btn btn-outline-secondary btn-sm" id="btnNext">Seterusnya <i class="bi bi-chevron-right"></i></button>
-        </div>
-      </div>
-
-      <div class="text-center muted small mt-4">© Klinik — Dashboard agregat. Tiada PII dipaparkan secara awam.</div>
+    <div class="d-flex align-items-center gap-2">
+      <span id="whoami" class="muted small">Belum log masuk</span>
+      <button id="btnSignOut" class="btn btn-outline-secondary btn-sm hidden"><i class="bi bi-box-arrow-right"></i> Keluar</button>
     </div>
   </div>
 
+  <!-- Sign-in Gate -->
+  <div id="signinCard" class="card p-4 mb-4 text-center">
+    <h5 class="mb-2">Akses Terhad</h5>
+    <p class="muted mb-3">Log masuk dengan akaun Google staf klinik untuk menggunakan dashboard.</p>
+    <div id="gsiBtn" class="d-inline-block"></div>
+    <div id="signinMsg" class="small text-danger mt-3"></div>
+  </div>
+
   <!-- App -->
-  <script nonce="abc123">
-  /************ KONFIG ************/
-  const CLIENT_ID   = '366415747851-9p6fegh84hkfs74prtmtj09ldsp2vi3m.apps.googleusercontent.com'; // <-- sama dgn Google Cloud
-  const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxkmVWcorPPwWmIXN-lFPJ8wucqyKgqwrfiD4ZBqRYl1gKOcRoM7oXNzSO_XPLYZ8CL/exec'; // <-- Web App URL (deploy: anyone)
+  <div id="app" class="hidden">
 
-  /************ STATE ************/
-  let ID_TOKEN = null;
-  let donutChart, barChart;
-  let page = 1, pageSize = 100; // pagination utk pesakit
+    <!-- Controls -->
+    <div class="card p-3 mb-3">
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-md-3">
+          <label class="form-label mb-1">Mula</label>
+          <input type="date" id="startDate" class="form-control"/>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label mb-1">Tamat</label>
+          <input type="date" id="endDate" class="form-control"/>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label mb-1">Diagnosis (kod)</label>
+          <input type="text" id="diagCode" class="form-control" placeholder="cth: URTI"/>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label mb-1">Kawasan (kata kunci)</label>
+          <input type="text" id="area" class="form-control" placeholder="cth: manir"/>
+        </div>
+      </div>
 
-  /************ HELPERS ************/
-  const $ = (q)=>document.querySelector(q);
-  const text = (el, v)=>{ el.textContent = v; };
-  const show = (el)=>el.classList.remove('hidden');
-  const hide = (el)=>el.classList.add('hidden');
+      <div class="toolbar d-flex flex-wrap gap-2 mt-3">
+        <div class="btn-group">
+          <button class="btn btn-outline-secondary btn-sm" id="btnToday">Hari ini</button>
+          <button class="btn btn-outline-secondary btn-sm" id="btnMonth">Bulan ini</button>
+          <button class="btn btn-outline-secondary btn-sm" id="btnYear">Tahun ini</button>
+        </div>
 
-  const fmtPeriod = (s,e)=> `${s} → ${e}`;
-  const todayISO = ()=> new Date().toISOString().slice(0,10);
-  const ymRange = (d)=>{ const dt=new Date(d); const s=new Date(dt.getFullYear(), dt.getMonth(), 1), e=new Date(dt.getFullYear(), dt.getMonth()+1, 0); return { s:s.toISOString().slice(0,10), e:e.toISOString().slice(0,10)}; };
-  const yRange  = (d)=>{ const dt=new Date(d); const s=`${dt.getFullYear()}-01-01`, e=`${dt.getFullYear()}-12-31`; return {s,e}; };
+        <button id="btnSync" class="btn btn-warning btn-sm"><i class="bi bi-arrow-down-up"></i> Sync (Yezza→Sheet)</button>
+        <button id="btnAggregate" class="btn btn-primary btn-sm"><i class="bi bi-clipboard2-data"></i> Kira Agregat</button>
+        <button id="btnLoadPatients" class="btn btn-success btn-sm"><i class="bi bi-people"></i> Muat Pesakit (ditapis)</button>
+        <button id="btnExport" class="btn btn-outline-secondary btn-sm"><i class="bi bi-download"></i> Export CSV (pesakit ditapis)</button>
 
-  function shortArea(area){
-    if (!area) return '';
-    const parts=String(area).split(',').map(s=>s.trim()).filter(Boolean);
-    // Ambil maksimum 2 komponen lokasi bukan nombor/poskod:
-    const filt=parts.filter(p=>!/^\d/.test(p)).slice(0,2);
-    return (filt.length?filt:parts.slice(0,2)).join(', ');
+        <button id="btnDelete" class="btn btn-outline-danger btn-sm ms-auto"><i class="bi bi-trash"></i> Padam Julat</button>
+        <button id="btnSort" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-down-up"></i> Susun Data</button>
+      </div>
+
+      <div id="status" class="small muted mt-2">Sedia.</div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="row g-3 mb-3">
+      <div class="col-12 col-md-3">
+        <div class="card p-3 h-100">
+          <div class="muted small">Labeled</div>
+          <div id="kpiLabeled" class="h3 mb-0">-</div>
+          <div class="muted small">Lawatan dipadankan ≥ 1 kategori</div>
+        </div>
+      </div>
+      <div class="col-12 col-md-3">
+        <div class="card p-3 h-100">
+          <div class="muted small">Kategori</div>
+          <div id="kpiCategories" class="h3 mb-0">-</div>
+          <div class="muted small">Bilangan kategori dikesan</div>
+        </div>
+      </div>
+      <div class="col-12 col-md-3">
+        <div class="card p-3 h-100">
+          <div class="muted small">Top</div>
+          <div id="kpiTop" class="h6 mb-0">-</div>
+          <div class="muted small">Kategori paling dominan</div>
+        </div>
+      </div>
+      <div class="col-12 col-md-3">
+        <div class="card p-3 h-100">
+          <div class="muted small">Prospek Outreach</div>
+          <div id="kpiProspect" class="h3 mb-0">0</div>
+          <div class="muted small">Pesakit ditapis (jadual)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="row g-3 mb-3">
+      <div class="col-12 col-xl-6">
+        <div class="card p-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Peratus Mengikut Kategori</h5>
+            <span id="legend1" class="muted small">—</span>
+          </div>
+          <canvas id="chartDonut" height="250"></canvas>
+        </div>
+      </div>
+      <div class="col-12 col-xl-6">
+        <div class="card p-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Top Kategori (Kiraan)</h5>
+            <span id="legend2" class="muted small">—</span>
+          </div>
+          <canvas id="chartBar" height="250"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Patients Table -->
+    <div class="card p-3 mb-5">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0">Senarai Pesakit (ditapis)</h5>
+        <span id="patientInfo" class="muted small">Jumlah: 0</span>
+      </div>
+      <div class="table-responsive">
+        <table id="tblPatients" class="table table-striped table-fixed align-middle">
+          <thead>
+          <tr>
+            <th style="width:18%">Nama</th>
+            <th style="width:8%">Umur</th>
+            <th style="width:18%">Diagnose</th>
+            <th style="width:10%">Kod</th>
+            <th style="width:20%">Kawasan</th>
+            <th style="width:12%">Tarikh</th>
+            <th style="width:14%">Telefon</th>
+          </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="d-flex gap-2">
+        <button id="btnPrev" class="btn btn-outline-secondary btn-sm" disabled>Sebelum</button>
+        <button id="btnNext" class="btn btn-outline-secondary btn-sm" disabled>Seterusnya</button>
+      </div>
+    </div>
+
+  </div><!-- /#app -->
+</div>
+
+<script>
+/*** KONFIG — tukar BACKEND_URL jika anda update deployment ***/
+const CLIENT_ID   = '366415747851-9p6fegh84hkfs74prtmtj09ldsp2vi3m.apps.googleusercontent.com';
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxkmVWcorPPwWmIXN-lFPJ8wucqyKgqwrfiD4ZBqRYl1gKOcRoM7oXNzSO_XPLYZ8CL/exec';
+
+/*** STATE ***/
+let ID_TOKEN = null;
+let donutChart = null, barChart = null;
+let patients = [];      // cache paparan
+let page = 0, pageSize = 20;
+
+/*** HELPERS ***/
+const $ = (sel) => document.querySelector(sel);
+const fmt = (d) => d ? new Date(d).toISOString().slice(0,10) : '';
+function setStatus(s){ $('#status').textContent = s; }
+function toShortText(t){ if(!t) return ''; const x=t.replace(/<br\s*\/?>/gi,' ').trim(); return x.length>60? x.slice(0,60)+'…' : x; }
+function toShortArea(a){ if(!a) return ''; const low=a.toLowerCase(); const keep=low.split(/[,|]/).map(s=>s.trim()).filter(Boolean); return keep.slice(0,2).join(', '); }
+
+/*** GOOGLE SIGN-IN ***/
+window.onload = () => {
+  if (!window.google || !google.accounts || !google.accounts.id) {
+    $('#signinMsg').textContent = 'Gagal memuatkan Google SSO. Semak internet/CSP.';
+    return;
   }
-  function shortDiagnosis(diagText, codes){
-    if (codes && codes.length) return codes.join(', ');
-    if (!diagText) return '';
-    const t=String(diagText).split(/\r?\n|\./)[0].trim(); // ayat pertama
-    return t.length>60 ? t.slice(0,57)+'…' : t;
+  google.accounts.id.initialize({
+    client_id: CLIENT_ID,
+    callback: onSignIn,
+    auto_select: false,
+    ux_mode: 'popup',
+    context: 'signin'
+  });
+  google.accounts.id.renderButton($('#gsiBtn'), { theme:'outline', size:'large', shape:'pill' });
+
+  // tarikh lalai = bulan ini
+  const d=new Date(), s=new Date(d.getFullYear(), d.getMonth(), 1), e=new Date(d.getFullYear(), d.getMonth()+1, 0);
+  $('#startDate').value = fmt(s);
+  $('#endDate').value = fmt(e);
+
+  // butang pantas
+  $('#btnToday').addEventListener('click', () => {
+    const t=new Date(); $('#startDate').value=fmt(t); $('#endDate').value=fmt(t);
+  });
+  $('#btnMonth').addEventListener('click', () => {
+    const d=new Date(), s=new Date(d.getFullYear(), d.getMonth(), 1), e=new Date(d.getFullYear(), d.getMonth()+1, 0);
+    $('#startDate').value=fmt(s); $('#endDate').value=fmt(e);
+  });
+  $('#btnYear').addEventListener('click', () => {
+    const d=new Date(), s=new Date(d.getFullYear(), 0, 1), e=new Date(d.getFullYear(), 11, 31);
+    $('#startDate').value=fmt(s); $('#endDate').value=fmt(e);
+  });
+
+  // actions
+  $('#btnSignOut').addEventListener('click', ()=>location.reload());
+  $('#btnSync').addEventListener('click', startSync);
+  $('#btnAggregate').addEventListener('click', computeAggregate);
+  $('#btnLoadPatients').addEventListener('click', loadPatients);
+  $('#btnExport').addEventListener('click', exportPatients);
+  $('#btnDelete').addEventListener('click', deleteRange);
+  $('#btnSort').addEventListener('click', sortData);
+  $('#btnPrev').addEventListener('click', ()=>{ if(page>0){page--; renderPatients();}});
+  $('#btnNext').addEventListener('click', ()=>{ const max = Math.ceil(patients.length/pageSize)-1; if(page<max){page++; renderPatients();}});
+};
+
+function onSignIn(resp){
+  try{
+    ID_TOKEN = resp.credential;
+    $('#signinCard').classList.add('hidden');
+    $('#app').classList.remove('hidden');
+    $('#btnSignOut').classList.remove('hidden');
+    $('#whoami').textContent = 'Log masuk berjaya';
+    setStatus('Sedia.');
+  }catch(e){
+    $('#signinMsg').textContent = 'Log masuk gagal. Cuba lagi.';
+    console.error(e);
   }
+}
 
-  async function callAPI(action, payload){
-    if (!ID_TOKEN) throw new Error('Belum log masuk');
-    const res = await fetch(BACKEND_URL, {
-      method:'POST', mode:'cors', credentials:'omit',
-      headers:{ 'Content-Type':'text/plain' },
-      body: JSON.stringify({ action, id_token: ID_TOKEN, payload })
-    });
-    if (!res.ok){
-      const t = await res.text();
-      throw new Error('API error: '+t);
-    }
-    return res.json();
+/*** BACKEND CALLER — guna text/plain supaya tiada preflight (CORS lulus) ***/
+async function callAPI(action, payload){
+  if (!ID_TOKEN) throw new Error('Belum log masuk');
+  const res = await fetch(BACKEND_URL, {
+    method: 'POST',
+    mode: 'cors',
+    headers: { 'Content-Type':'text/plain' },
+    body: JSON.stringify({ action, id_token: ID_TOKEN, payload })
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+/*** ACTIONS ***/
+async function startSync(){
+  const start=$('#startDate').value, end=$('#endDate').value;
+  if(!start||!end) return alert('Pilih tarikh mula & tamat.');
+  setStatus('Memulakan sync...');
+  try{
+    const r = await callAPI('sync_range', { start, end });
+    setStatus('Sync selesai. Rekod baharu: ' + (r.inserted||0));
+  }catch(e){ setStatus('Ralat: ' + e.message); console.error(e); }
+}
+
+async function computeAggregate(){
+  const start=$('#startDate').value, end=$('#endDate').value;
+  if(!start||!end) return alert('Pilih tarikh mula & tamat.');
+  setStatus('Mengira agregat...');
+  try{
+    const r = await callAPI('compute_aggregate', { start, end });
+    // kpi
+    const rows = r.rows || [];
+    const labeled = r.labeled || 0;
+    $('#kpiLabeled').textContent = labeled;
+    $('#kpiCategories').textContent = new Set(rows.map(x=>x[4])).size || 0;
+    const top = rows.slice().sort((a,b)=>b[6]-a[6])[0];
+    $('#kpiTop').textContent = top ? top[5] : '-';
+    $('#legend1').textContent = `${r.start} → ${r.end}`;
+    $('#legend2').textContent = `${r.start} → ${r.end}`;
+
+    // chart data
+    const list = rows.map(x=>({code:x[4], name:x[5], count:x[6], pct:x[7]})).sort((a,b)=>b.count-a.count);
+    drawDonut(list);
+    drawBar(list.slice(0,10));
+
+    setStatus('Agregat siap.');
+  }catch(e){ setStatus('Ralat: ' + e.message); console.error(e); }
+}
+
+async function loadPatients(){
+  const start=$('#startDate').value, end=$('#endDate').value;
+  const diag=$('#diagCode').value.trim(), area=$('#area').value.trim();
+  if(!start||!end) return alert('Pilih tarikh mula & tamat.');
+  setStatus('Memuat senarai pesakit (ditapis)...');
+  try{
+    const r = await callAPI('list_patients', { start, end, code: diag, area });
+    patients = (r.items||[]).map(x=>({
+      name: x.name || '',
+      age: x.age || '',
+      diag: toShortText(x.diag || ''),
+      code: x.code || '',
+      area: toShortArea(x.area || ''),
+      date: x.date || '',
+      phone: x.phone || ''
+    }));
+    page=0; renderPatients();
+    $('#kpiProspect').textContent = patients.length;
+    setStatus('Siap memuat senarai pesakit.');
+  }catch(e){ setStatus('Ralat: ' + e.message); console.error(e); }
+}
+
+function renderPatients(){
+  const tbody = $('#tblPatients tbody');
+  tbody.innerHTML = '';
+  const start = page*pageSize, end = Math.min(start+pageSize, patients.length);
+  for(let i=start;i<end;i++){
+    const p = patients[i];
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${p.name}</td>
+      <td>${p.age}</td>
+      <td>${p.diag}</td>
+      <td>${p.code}</td>
+      <td>${p.area}</td>
+      <td>${p.date}</td>
+      <td>${p.phone}</td>`;
+    tbody.appendChild(tr);
   }
+  $('#patientInfo').textContent = `Jumlah: ${patients.length} (mukasurat ${patients.length? (page+1):0}/${Math.max(1,Math.ceil(patients.length/pageSize))})`;
+  $('#btnPrev').disabled = page===0;
+  $('#btnNext').disabled = (page+1)>=Math.ceil(patients.length/pageSize);
+}
 
-  /************ AUTH (GIS) ************/
-  window.onload = () => {
-    // GIS init
-    if (window.google && google.accounts && google.accounts.id){
-      google.accounts.id.initialize({ client_id: CLIENT_ID, callback: onSignIn, auto_select:false, ux_mode:'popup', context:'signin' });
-      google.accounts.id.renderButton($('#gsiBtn'), { theme:'outline', size:'large', shape:'pill' });
-    } else {
-      $('#signinMsg').textContent = 'Ralat memuatkan Google Sign-In.';
-    }
+function exportPatients(){
+  if(!patients.length) return alert('Tiada data pesakit untuk dieksport.');
+  const header = ['name','age','diagnose','code','area','date','phone'];
+  const rows = patients.map(p=>[p.name,p.age,p.diag,p.code,p.area,p.date,p.phone]);
+  const csv = [header].concat(rows).map(r=>r.map(c=>String(c).replaceAll('"','""')).map(c=>`"${c}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='patients_filtered.csv'; a.click(); URL.revokeObjectURL(url);
+}
 
-    // Tarikh lalai = bulan ini
-    const {s,e} = ymRange(new Date());
-    $('#startDate').value = s; $('#endDate').value = e;
+async function deleteRange(){
+  const start=$('#startDate').value, end=$('#endDate').value;
+  if(!start||!end) return alert('Pilih tarikh mula & tamat.');
+  if(!confirm(`Padam data dalam julat ${start} → ${end}?`)) return;
+  setStatus('Memadam data julat tarikh...');
+  try{
+    const r = await callAPI('delete_range', { start, end });
+    setStatus('Padam siap. Dipadam: ' + (r.deleted||0));
+  }catch(e){ setStatus('Ralat: ' + e.message); console.error(e); }
+}
 
-    // Quick ranges
-    $('#qDay').addEventListener('click', ()=>{ const t=todayISO(); $('#startDate').value=t; $('#endDate').value=t; });
-    $('#qMonth').addEventListener('click', ()=>{ const r=ymRange(new Date()); $('#startDate').value=r.s; $('#endDate').value=r.e; });
-    $('#qYear').addEventListener('click', ()=>{ const r=yRange(new Date()); $('#startDate').value=r.s; $('#endDate').value=r.e; });
+async function sortData(){
+  const start=$('#startDate').value, end=$('#endDate').value;
+  if(!start||!end) return alert('Pilih tarikh mula & tamat.');
+  setStatus('Menyusun data di Sheet...');
+  try{
+    const r = await callAPI('sort_sheet', { start, end });
+    setStatus('Susun siap.');
+  }catch(e){ setStatus('Ralat: ' + e.message); console.error(e); }
+}
 
-    // Actions
-    $('#btnSignOut').addEventListener('click', ()=>{ ID_TOKEN=null; location.reload(); });
-    $('#btnAggregate').addEventListener('click', computeAggregate);
-    $('#btnLoadPatients').addEventListener('click', loadPatients);
-    $('#btnExportCsv').addEventListener('click', exportCsv);
-    $('#btnPrev').addEventListener('click', ()=>{ if (page>1){ page--; loadPatients(); } });
-    $('#btnNext').addEventListener('click', ()=>{ page++; loadPatients(); });
-
-    $('#btnSync').addEventListener('click', startSync);
-
-    // Placeholder ops backend akan datang
-    $('#btnDeleteRange').addEventListener('click', ()=> alert('Fungsi padam julat memerlukan kemaskini backend (Code.gs).'));
-    $('#btnSortRange').addEventListener('click', ()=> alert('Fungsi susun data memerlukan kemaskini backend (Code.gs).'));
-  };
-
-  function onSignIn(resp){
-    try{
-      ID_TOKEN = resp.credential;
-      text($('#whoami'), 'Signed-in');
-      hide($('#signinCard')); show($('#app')); show($('#btnSignOut'));
-      computeAggregate(); // kira agregat awal
-    }catch(e){
-      $('#signinMsg').textContent = 'Log masuk gagal.';
-      console.error(e);
-    }
-  }
-
-  /************ AGGREGATE (summary) ************/
-  async function computeAggregate(){
-    const s=$('#startDate').value, e=$('#endDate').value;
-    text($('#statusText'), 'Kira agregat…');
-    try{
-      const res=await callAPI('compute_range', { start: s, end: e });
-      renderKPI(res);
-      renderCharts(res);
-      $('#legendPeriod1').textContent=fmtPeriod(res.start,res.end);
-      $('#legendPeriod2').textContent=fmtPeriod(res.start,res.end);
-      text($('#statusText'),'Selesai kira agregat.');
-    }catch(err){
-      text($('#statusText'),'Ralat: '+err.message);
-      console.error(err);
-    }
-  }
-  function renderKPI(summary){
-    const totalLabeled=summary.labeled||0;
-    const cats=new Set((summary.rows||[]).map(r=>r[4])).size;
-    const top=(summary.rows||[]).slice().sort((a,b)=>b[6]-a[6])[0];
-    text($('#kpiLabeled'), totalLabeled);
-    text($('#kpiCategories'), cats);
-    text($('#kpiTop'), top ? top[5] : '-');
-  }
-  function renderCharts(summary){
-    const list=(summary.rows||[]).map(r=>({code:r[4], name:r[5], count:r[6], pct:r[7]}))
-                                 .sort((a,b)=>b.count-a.count);
-    // Donut
-    const dctx=$('#chartDonut'); const dlabels=list.map(x=>x.name), dvals=list.map(x=>x.pct);
-    if (donutChart) donutChart.destroy();
-    donutChart=new Chart(dctx,{ type:'doughnut', data:{ labels:dlabels, datasets:[{ data:dvals }] },
-      options:{ plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label:(c)=>`${c.label}: ${c.raw}%` } } }, cutout:'60%' }});
-    // Bar
-    const bctx=$('#chartBar'); const blabels=list.slice(0,10).map(x=>x.name), bvals=list.slice(0,10).map(x=>x.count);
-    if (barChart) barChart.destroy();
-    barChart=new Chart(bctx,{ type:'bar', data:{ labels:blabels, datasets:[{ data:bvals }] },
-      options:{ plugins:{ legend:{ display:false } } }});
-  }
-
-  /************ PATIENTS (filtered) ************/
-  async function loadPatients(){
-    const s=$('#startDate').value, e=$('#endDate').value;
-    const code=$('#diagCode').value.trim().toUpperCase();
-    const area=$('#areaQuery').value.trim();
-    text($('#statusText'),'Memuatkan pesakit…');
-    try{
-      const res=await callAPI('patients', { startISO:s, endISO:e, page, pageSize, diagnosisCode:code, areaQuery:area });
-      renderPatients(res);
-      text($('#kpiOutreach'), res.rows.length);
-      text($('#statusText'),`Selesai. Papar ${res.rows.length} rekod (halaman ${res.page}).`);
-    }catch(err){
-      text($('#statusText'),'Ralat: '+err.message);
-      console.error(err);
-    }
-  }
-  function renderPatients(payload){
-    const tbody=$('#tblPatients tbody'); tbody.innerHTML='';
-    (payload.rows||[]).forEach(r=>{
-      const tr=document.createElement('tr');
-      const areaShort=shortArea(r.area);
-      const diagShort=shortDiagnosis(r.diagnosisText, r.diagnosisCodes);
-      tr.innerHTML=`
-        <td class="mono">${r.visitDate||''}</td>
-        <td>${r.name||''}</td>
-        <td class="mono">${r.age||''}</td>
-        <td class="truncate" title="${(r.area||'').replace(/"/g,'&quot;')}">${areaShort}</td>
-        <td class="mono">${(r.diagnosisCodes||[]).join(', ')}</td>
-        <td class="truncate" title="${(r.diagnosisText||'').replace(/"/g,'&quot;')}">${diagShort}</td>
-        <td class="mono">${r.phone||''}</td>`;
-      tbody.appendChild(tr);
-    });
-  }
-
-  function exportCsv(){
-    const rows=[...document.querySelectorAll('#tblPatients tbody tr')].map(tr=>{
-      const t=tr.querySelectorAll('td');
-      return [t[0].textContent,t[1].textContent,t[2].textContent,t[3].textContent,t[4].textContent,t[5].textContent,t[6].textContent];
-    });
-    const header=['visit_date','patient_name','age','area_short','codes','diagnosis_short','phone'];
-    const csv=[header].concat(rows).map(r=>r.map(x=>`"${String(x||'').replace(/"/g,'""')}"`).join(',')).join('\n');
-    const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-    const a=document.createElement('a'); a.href=url; a.download='patients_filtered.csv'; a.click(); URL.revokeObjectURL(url);
-  }
-
-  /************ SYNC (async with polling) ************/
-  let SYNC_JOB=null, POLL_TIMER=null;
-  async function startSync(){
-    const s=$('#startDate').value, e=$('#endDate').value;
-    text($('#statusText'), 'Memulakan sync…');
-    try{
-      const r=await callAPI('sync_start', { startISO:s, endISO:e });
-      SYNC_JOB=r.job; text($('#statusText'), `Sync dimulakan (job: ${SYNC_JOB})`);
-      if (POLL_TIMER) clearInterval(POLL_TIMER);
-      POLL_TIMER=setInterval(checkSync, 2000);
-    }catch(err){
-      text($('#statusText'),'Ralat: '+err.message);
-      console.error(err);
-    }
-  }
-  async function checkSync(){
-    if (!SYNC_JOB) return;
-    try{
-      const r=await callAPI('sync_progress', { job: SYNC_JOB });
-      const {step,total,doneCount,done,synced,error}=r||{};
-      text($('#statusText'), `Sync: ${step||'-'} ${doneCount||0}/${total||0} ${synced!=null?('(tulis: '+synced+')'):''}`);
-      if (done){
-        clearInterval(POLL_TIMER); POLL_TIMER=null; SYNC_JOB=null;
-        text($('#statusText'), error ? ('Sync tamat (ralat): '+error) : 'Sync siap.');
-        // lepas siap, kira agregat & refresh pesakit (jika ada penapis)
-        computeAggregate();
-        if ($('#diagCode').value || $('#areaQuery').value) loadPatients();
-      }
-    }catch(err){
-      clearInterval(POLL_TIMER); POLL_TIMER=null; SYNC_JOB=null;
-      text($('#statusText'),'Ralat polling: '+err.message);
-      console.error(err);
-    }
-  }
-  </script>
+/*** CHARTS ***/
+function drawDonut(list){
+  const labels = list.map(d=>d.name), values = list.map(d=>d.pct);
+  const ctx = document.getElementById('chartDonut');
+  if (donutChart) donutChart.destroy();
+  donutChart = new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data: values }] },
+    options:{ plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label:(c)=>`${c.label}: ${c.raw}%` } }}, cutout:'60%' }
+  });
+}
+function drawBar(list){
+  const labels = list.map(d=>d.name), values = list.map(d=>d.count);
+  const ctx = document.getElementById('chartBar');
+  if (barChart) barChart.destroy();
+  barChart = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ data: values }] },
+    options:{ plugins:{ legend:{ display:false }}, scales:{ x:{ ticks:{} }, y:{ ticks:{} } } }
+  });
+}
+</script>
 </body>
 </html>
