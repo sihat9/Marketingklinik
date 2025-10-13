@@ -299,7 +299,8 @@
     const d=new Date(); const y=d.getFullYear(); const m=d.getMonth()+1;
     $('#rangeInfo').textContent='Mengira bulan ini…';
     try{
-      const res=await callAPI('compute_month',{year:y,month:m});
+      const res = await callAPI('compute_month', { year: y, month: m });
+      if (res && res.error) throw new Error(res.error + (res.detail ? (': ' + res.detail) : ''));
       setKPIs(res);
       const list=toUIRows(res.rows).sort((a,b)=>b.count-a.count);
       drawDonut(list); drawBar(list.slice(0,10)); renderTable(list);
@@ -308,12 +309,14 @@
       $('#legendPeriod2').textContent=fmtPeriod(res.start,res.end);
     }catch(err){ $('#rangeInfo').textContent='Ralat: '+err.message; console.error(err); }
   }
+
   async function applyRange(){
     const s=$('#startDate').value, e=$('#endDate').value;
     if(!s||!e){ alert('Sila pilih tarikh mula & tamat.'); return; }
     $('#rangeInfo').textContent='Mengira julat tarikh…';
     try{
-      const res=await callAPI('compute_range',{start:s,end:e});
+      const res = await callAPI('compute_range', { start: s, end: e });
+      if (res && res.error) throw new Error(res.error + (res.detail ? (': ' + res.detail) : ''));
       setKPIs(res);
       const list=toUIRows(res.rows).sort((a,b)=>b.count-a.count);
       drawDonut(list); drawBar(list.slice(0,10)); renderTable(list);
