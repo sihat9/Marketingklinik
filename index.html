@@ -5,436 +5,221 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Clinic Marketing Dashboard</title>
 
-  <!-- ========= CSP (ketat, sesuai GitHub Pages + Apps Script API) ========= -->
+  <!-- ========= CSP (sesuai GitHub Pages + broker Apps Script) ========= -->
   <meta http-equiv="Content-Security-Policy"
         content="
-          default-src 'none';
-          script-src 'self' https://cdn.jsdelivr.net;
-          connect-src https://script.google.com https://script.googleusercontent.com;
-          style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
-          img-src 'self' data:;
-          font-src 'self' https://cdn.jsdelivr.net;
-          frame-src 'none';
-          base-uri 'none';
-          form-action 'none';
-        ">
+        default-src 'none';
+        script-src 'self' 'unsafe-inline';
+        connect-src 'self' https://script.google.com https://script.googleusercontent.com https://cdn.jsdelivr.net;
+        style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+        img-src 'self' data:;
+        font-src 'self' https://cdn.jsdelivr.net;
+        frame-src 'self';
+        " />
 
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- UI (CSS sahaja, tiada skrip luar supaya patuh CSP) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
 
   <style>
     :root{
       --bg:#fff; --text:#111827; --muted:#6b7280; --card:#fff; --border:#e5e7eb;
       --primary:#0d6efd; --success:#16a34a; --danger:#dc3545;
     }
-    body{background:var(--bg); color:var(--text);}
-    .card{background:var(--card); border:1px solid var(--border); border-radius:16px;}
+    body{background:var(--bg); color:var(--text)}
+    .card{background:var(--card); border:1px solid var(--border); border-radius:16px}
     .muted{color:var(--muted)}
+    .hidden{display:none !important}
     .brand{font-weight:800}
-    .chip{padding:.3rem .6rem; border-radius:999px; background:#eef2ff; color:#1e40af; font-size:.85rem}
-    .hidden{display:none !important;}
-    .table-fixed{table-layout:fixed}
-    .table-fixed td{word-break:break-word}
   </style>
 </head>
 <body>
 <div class="container py-4">
 
   <!-- Header -->
-  <div class="d-flex align-items-center justify-content-between mb-3">
+  <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
       <div class="brand h3 mb-1">Clinic Marketing Dashboard</div>
       <div class="muted">Ringkasan kategori & outreach — tanpa PII di UI awam</div>
     </div>
     <div class="d-flex align-items-center gap-2">
-      <span id="whoami" class="muted small">Belum log masuk</span>
-      <button id="btnSignOut" class="btn btn-outline-secondary btn-sm hidden"><i class="bi bi-box-arrow-right"></i> Keluar</button>
+      <small id="signinStatus" class="muted">Belum log masuk</small>
+      <button id="btnSignOut" class="btn btn-outline-secondary btn-sm hidden">
+        <i class="bi bi-box-arrow-right"></i> Keluar
+      </button>
     </div>
   </div>
 
-  <!-- Sign-in Gate (broker popup) -->
-  <div id="signinCard" class="card p-4 mb-4 text-center">
+  <!-- Gate (GitHub) -->
+  <div id="signinCard" class="card p-4 text-center">
     <h5 class="mb-2">Akses Terhad</h5>
-    <p class="muted mb-3">Log masuk dengan akaun Google staf klinik melalui tetingkap selamat.</p>
-    <button id="btnLogin" class="btn btn-outline-dark px-4">
-      <i class="bi bi-google"></i> Log masuk dengan Google
+    <p class="muted mb-3">Log masuk dengan akaun Google staf klinik melalui tingkap selamat.</p>
+    <button id="loginBtn" class="btn btn-light border px-4">
+      <i class="bi bi-google me-2"></i> Log masuk dengan Google
     </button>
-    <div class="small mt-3 text-muted">
-      Origin halaman: <code id="originTxt"></code>
-    </div>
-    <div id="signinMsg" class="small text-danger mt-2"></div>
+    <div class="small muted mt-3">Origin halaman: <code id="originText"></code></div>
   </div>
 
   <!-- App -->
   <div id="app" class="hidden">
 
-    <!-- Controls -->
     <div class="card p-3 mb-3">
-      <div class="row g-2 align-items-end">
+      <div class="row g-2">
         <div class="col-12 col-md-3">
           <label class="form-label mb-1">Mula</label>
-          <input type="date" id="startDate" class="form-control"/>
+          <input type="date" id="startDate" class="form-control" />
         </div>
         <div class="col-12 col-md-3">
           <label class="form-label mb-1">Tamat</label>
-          <input type="date" id="endDate" class="form-control"/>
+          <input type="date" id="endDate" class="form-control" />
         </div>
         <div class="col-12 col-md-3">
           <label class="form-label mb-1">Diagnosis (kod)</label>
-          <input type="text" id="diagCode" class="form-control" placeholder="cth: URTI"/>
+          <input type="text" id="diagCode" class="form-control" placeholder="cth: URTI" />
         </div>
         <div class="col-12 col-md-3">
           <label class="form-label mb-1">Kawasan (kata kunci)</label>
-          <input type="text" id="area" class="form-control" placeholder="cth: manir"/>
+          <input type="text" id="area" class="form-control" placeholder="cth: manir" />
         </div>
       </div>
 
       <div class="d-flex flex-wrap gap-2 mt-3">
-        <div class="btn-group">
-          <button class="btn btn-outline-secondary btn-sm" id="btnToday">Hari ini</button>
-          <button class="btn btn-outline-secondary btn-sm" id="btnMonth">Bulan ini</button>
-          <button class="btn btn-outline-secondary btn-sm" id="btnYear">Tahun ini</button>
-        </div>
+        <button id="btnToday"  class="btn btn-outline-secondary btn-sm">Hari ini</button>
+        <button id="btnMonth"  class="btn btn-outline-secondary btn-sm">Bulan ini</button>
+        <button id="btnYear"   class="btn btn-outline-secondary btn-sm">Tahun ini</button>
 
-        <button id="btnSync" class="btn btn-warning btn-sm"><i class="bi bi-arrow-down-up"></i> Sync (Yezza→Sheet)</button>
-        <button id="btnAggregate" class="btn btn-primary btn-sm"><i class="bi bi-clipboard2-data"></i> Kira Agregat</button>
+        <button id="btnSync"        class="btn btn-warning btn-sm"><i class="bi bi-arrow-down-up"></i> Sync (Yezza→Sheet)</button>
+        <button id="btnAggregate"   class="btn btn-primary btn-sm"><i class="bi bi-clipboard2-data"></i> Kira Agregat</button>
         <button id="btnLoadPatients" class="btn btn-success btn-sm"><i class="bi bi-people"></i> Muat Pesakit (ditapis)</button>
-        <button id="btnExport" class="btn btn-outline-secondary btn-sm"><i class="bi bi-download"></i> Export CSV (pesakit ditapis)</button>
-
-        <button id="btnDelete" class="btn btn-outline-danger btn-sm ms-auto"><i class="bi bi-trash"></i> Padam Julat</button>
-        <button id="btnSort" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-down-up"></i> Susun Data</button>
       </div>
 
       <div id="status" class="small muted mt-2">Sedia.</div>
     </div>
 
-    <!-- KPIs -->
-    <div class="row g-3 mb-3">
-      <div class="col-12 col-md-3">
-        <div class="card p-3 h-100">
-          <div class="muted small">Labeled</div>
-          <div id="kpiLabeled" class="h3 mb-0">-</div>
-          <div class="muted small">Lawatan dipadankan ≥ 1 kategori</div>
-        </div>
-      </div>
-      <div class="col-12 col-md-3">
-        <div class="card p-3 h-100">
-          <div class="muted small">Kategori</div>
-          <div id="kpiCategories" class="h3 mb-0">-</div>
-          <div class="muted small">Bilangan kategori dikesan</div>
-        </div>
-      </div>
-      <div class="col-12 col-md-3">
-        <div class="card p-3 h-100">
-          <div class="muted small">Top</div>
-          <div id="kpiTop" class="h6 mb-0">-</div>
-          <div class="muted small">Kategori paling dominan</div>
-        </div>
-      </div>
-      <div class="col-12 col-md-3">
-        <div class="card p-3 h-100">
-          <div class="muted small">Prospek Outreach</div>
-          <div id="kpiProspect" class="h3 mb-0">0</div>
-          <div class="muted small">Pesakit ditapis (jadual)</div>
-        </div>
-      </div>
+    <div class="card p-3">
+      <h5 class="mb-2">Output (ringkas)</h5>
+      <pre id="out" class="small mb-0" style="white-space:pre-wrap"></pre>
     </div>
-
-    <!-- Charts -->
-    <div class="row g-3 mb-3">
-      <div class="col-12 col-xl-6">
-        <div class="card p-3">
-          <div class="d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Peratus Mengikut Kategori</h5>
-            <span id="legend1" class="muted small">—</span>
-          </div>
-          <canvas id="chartDonut" height="250"></canvas>
-        </div>
-      </div>
-      <div class="col-12 col-xl-6">
-        <div class="card p-3">
-          <div class="d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Top Kategori (Kiraan)</h5>
-            <span id="legend2" class="muted small">—</span>
-          </div>
-          <canvas id="chartBar" height="250"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <!-- Patients Table -->
-    <div class="card p-3 mb-5">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <h5 class="mb-0">Senarai Pesakit (ditapis)</h5>
-        <span id="patientInfo" class="muted small">Jumlah: 0</span>
-      </div>
-      <div class="table-responsive">
-        <table id="tblPatients" class="table table-striped table-fixed align-middle">
-          <thead>
-          <tr>
-            <th style="width:18%">Nama</th>
-            <th style="width:8%">Umur</th>
-            <th style="width:18%">Diagnose</th>
-            <th style="width:10%">Kod</th>
-            <th style="width:20%">Kawasan</th>
-            <th style="width:12%">Tarikh</th>
-            <th style="width:14%">Telefon</th>
-          </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div class="d-flex gap-2">
-        <button id="btnPrev" class="btn btn-outline-secondary btn-sm" disabled>Sebelum</button>
-        <button id="btnNext" class="btn btn-outline-secondary btn-sm" disabled>Seterusnya</button>
-      </div>
-    </div>
-
-  </div><!-- /#app -->
+  </div>
 </div>
 
+<!-- ============ APP SCRIPT ============ -->
 <script>
-/** ===================== KONFIG ===================== **
- * 1) BROKER_URL  : URL Web App Apps Script "Broker" (mode Execute as: Me, Access: Anyone)
- * 2) BACKEND_URL : URL Web App Apps Script Backend (tempat logic + CORS + pengesahan berlaku)
- * 3) ALLOWED_BROKER_ORIGINS: asal (origin) yang diterima untuk postMessage (broker)
- */
-const BROKER_URL  = 'https://script.google.com/macros/s/AKfycby1A1DrDRsoW3CP9tDI1EMdLzVBaCeubhT5HOaFLQQtQ3K7GEYbgows-WgGLSQV71fX/exec?broker=1&origin=https%3A%2F%2Fsihat9.github.io';
-const BACKEND_URL = 'https://script.google.com/macros/s/AKfycby1A1DrDRsoW3CP9tDI1EMdLzVBaCeubhT5HOaFLQQtQ3K7GEYbgows-WgGLSQV71fX/exec';
+  // === 1) KONFIG ===
+  // Backend (deployment URL) –> TETAPKAN DI SINI
+  const BACKEND_URL = 'https://script.google.com/macros/s/AKfycby1A1DrDRsoW3CP9tDI1EMdLzVBaCeubhT5HOaFLQQtQ3K7GEYbgows-WgGLSQV71fX/exec';
 
-// Dapatkan origin broker dari URL agar tak tersalah taip
-let BROKER_ORIGIN = '';
-try { BROKER_ORIGIN = new URL(BROKER_URL).origin; } catch(_){}
+  // Broker URL: broker=1 + origin (wajib supaya Apps Script tahu ke mana nak postMessage)
+  const BROKER_URL  = BACKEND_URL + '?broker=1&origin=' + encodeURIComponent(location.origin);
 
-// Jika mahu tambah origin lain (contoh script.googleusercontent.com), letak di sini
-const ALLOWED_BROKER_ORIGINS = BROKER_ORIGIN ? [BROKER_ORIGIN] : [];
+  // === 2) STATE ===
+  let ID_TOKEN = null;
 
-/** ===================== STATE ===================== **/
-let ID_TOKEN = null;
-let SIGNED_EMAIL = '';
-let donutChart = null, barChart = null;
-let patients = [];
-let page = 0, pageSize = 20;
+  // === 3) HELPERS UI ===
+  const $ = (s) => document.querySelector(s);
+  const setStatus = (t) => $('#status') && ($('#status').textContent = t);
+  const setOut = (o) => { const el = $('#out'); if (el) el.textContent = (typeof o === 'string') ? o : JSON.stringify(o, null, 2); };
 
-/** ===================== HELPERS ===================== **/
-const $ = (sel) => document.querySelector(sel);
-const fmtISO = (d) => d ? new Date(d).toISOString().slice(0,10) : '';
-function setStatus(s){ $('#status').textContent = s; }
-function toShortText(t){ if(!t) return ''; const x=t.replace(/<br\s*\/?>/gi,' ').trim(); return x.length>60? x.slice(0,60)+'…' : x; }
-function toShortArea(a){ if(!a) return ''; const low=a.toLowerCase(); const parts=low.split(/[,|]/).map(s=>s.trim()).filter(Boolean); return parts.slice(0,2).join(', '); }
+  function fmt(d) { return d ? new Date(d).toISOString().slice(0,10) : ''; }
 
-/** ===================== DATE PRESETS ===================== **/
-(function initDates(){
-  $('#originTxt').textContent = location.origin;
-  const now=new Date();
-  const s=new Date(now.getFullYear(), now.getMonth(), 1);
-  const e=new Date(now.getFullYear(), now.getMonth()+1, 0);
-  $('#startDate').value = fmtISO(s);
-  $('#endDate').value   = fmtISO(e);
+  // === 4) BROKER POPUP ===
+  function openBroker() {
+    const w = 500, h = 600;
+    const y = window.top.outerHeight/2 + window.top.screenY - (h/2);
+    const x = window.top.outerWidth /2 + window.top.screenX - (w/2);
+    window.open(BROKER_URL, 'brokerWin', `popup=1,width=${w},height=${h},left=${x},top=${y}`);
+  }
 
-  $('#btnToday').addEventListener('click', ()=>{
-    const t=new Date(); $('#startDate').value=fmtISO(t); $('#endDate').value=fmtISO(t);
-  });
-  $('#btnMonth').addEventListener('click', ()=>{
-    const d=new Date(), s=new Date(d.getFullYear(), d.getMonth(), 1), e=new Date(d.getFullYear(), d.getMonth()+1, 0);
-    $('#startDate').value=fmtISO(s); $('#endDate').value=fmtISO(e);
-  });
-  $('#btnYear').addEventListener('click', ()=>{
-    const d=new Date(), s=new Date(d.getFullYear(), 0, 1), e=new Date(d.getFullYear(), 11, 31);
-    $('#startDate').value=fmtISO(s); $('#endDate').value=fmtISO(e);
-  });
-})();
-
-/** ===================== LOGIN (BROKER POPUP) ===================== **/
-$('#btnLogin').addEventListener('click', openBroker);
-$('#btnSignOut').addEventListener('click', ()=>location.reload());
-
-function openBroker(){
-  $('#signinMsg').textContent = '';
-  const url = BROKER_URL + (BROKER_URL.includes('?') ? '&' : '?') +
-              'origin=' + encodeURIComponent(location.origin);
-  const w = 520, h = 600;
-  const y = window.top.outerHeight/2 + window.top.screenY - (h/2);
-  const x = window.top.outerWidth/2  + window.top.screenX - (w/2);
-  window.open(url, 'gsi_broker',
-    `popup=yes,width=${w},height=${h},left=${x},top=${y},resizable=yes,scrollbars=yes`);
-}
-
-// Terima ID token dari broker
-window.addEventListener('message', (event)=>{
-  try{
-    if (!ALLOWED_BROKER_ORIGINS.includes(event.origin)) return; // tolak sender tak sah
-    const data = event.data || {};
-    if (data.type !== 'gsi_token') return;
-
-    ID_TOKEN = data.id_token || null;
-    SIGNED_EMAIL = data.email || '';
-    if (!ID_TOKEN){
-      $('#signinMsg').textContent = 'Log masuk gagal (tiada token). Cuba lagi.';
-      return;
+  // Terima token dari broker (Apps Script)
+  window.addEventListener('message', (ev) => {
+    if (!String(ev.origin).startsWith('https://script.google.com')) return;
+    const msg = ev.data || {};
+    if (msg.type === 'id_token') {
+      ID_TOKEN = msg.token;
+      $('#signinStatus').textContent = 'Log masuk berjaya';
+      $('#signinCard').classList.add('hidden');
+      $('#app').classList.remove('hidden');
+      $('#btnSignOut').classList.remove('hidden');
+      setStatus('Sedia.');
+    } else if (msg.type === 'error') {
+      $('#signinStatus').textContent = 'Ralat log masuk: ' + (msg.error || '');
     }
-
-    // UI → logged in
-    $('#signinCard').classList.add('hidden');
-    $('#app').classList.remove('hidden');
-    $('#btnSignOut').classList.remove('hidden');
-    $('#whoami').textContent = `Signed-in: ${SIGNED_EMAIL || 'akaun Google'}`;
-    setStatus('Sedia.');
-  }catch(e){
-    $('#signinMsg').textContent = 'Ralat menerima token. Cuba lagi.';
-    console.error(e);
-  }
-});
-
-/** ===================== BACKEND CALLER ===================== **/
-async function callAPI(action, payload){
-  if (!ID_TOKEN) throw new Error('Belum log masuk');
-  const res = await fetch(BACKEND_URL, {
-    method: 'POST',
-    headers: { 'Content-Type':'text/plain' }, // elak preflight
-    body: JSON.stringify({ action, id_token: ID_TOKEN, payload })
   });
-  if (!res.ok){
-    const text = await res.text().catch(()=>res.statusText);
-    throw new Error(text || ('HTTP ' + res.status));
+
+  // === 5) PANGGIL BACKEND ===
+  async function callAPI(action, payload) {
+    if (!ID_TOKEN) throw new Error('Belum log masuk');
+    const res = await fetch(BACKEND_URL, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action, id_token: ID_TOKEN, payload })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
   }
-  return res.json();
-}
 
-/** ===================== ACTIONS ===================== **/
-$('#btnSync').addEventListener('click', startSync);
-$('#btnAggregate').addEventListener('click', computeAggregate);
-$('#btnLoadPatients').addEventListener('click', loadPatients);
-$('#btnExport').addEventListener('click', exportPatients);
-$('#btnDelete').addEventListener('click', deleteRange);
-$('#btnSort').addEventListener('click', sortData);
-$('#btnPrev').addEventListener('click', ()=>{ if(page>0){page--; renderPatients();}});
-$('#btnNext').addEventListener('click', ()=>{ const max=Math.ceil(patients.length/pageSize)-1; if(page<max){page++; renderPatients();}});
-
-async function startSync(){
-  const start=$('#startDate').value, end=$('#endDate').value;
-  if(!start||!end) return alert('Pilih tarikh mula & tamat.');
-  setStatus('Memulakan sync...');
-  try{
-    const r = await callAPI('sync_range', { start, end });
-    setStatus('Sync selesai. Rekod baharu: ' + (r.inserted||0));
-  }catch(e){ setStatus('Ralat: ' + e.message); console.error(e); }
-}
-async function computeAggregate(){
-  const start=$('#startDate').value, end=$('#endDate').value;
-  if(!start||!end) return alert('Pilih tarikh mula & tamat.');
-  setStatus('Mengira agregat...');
-  try{
-    const r = await callAPI('compute_aggregate', { start, end });
-    const rows = r.rows || [];
-    const labeled = r.labeled || 0;
-    $('#kpiLabeled').textContent = labeled;
-    $('#kpiCategories').textContent = new Set(rows.map(x=>x[4])).size || 0;
-    const top = rows.slice().sort((a,b)=>b[6]-a[6])[0];
-    $('#kpiTop').textContent = top ? top[5] : '-';
-    $('#legend1').textContent = `${r.start} → ${r.end}`;
-    $('#legend2').textContent = `${r.start} → ${r.end}`;
-
-    const list = rows.map(x=>({code:x[4], name:x[5], count:x[6], pct:x[7]})).sort((a,b)=>b.count-a.count);
-    drawDonut(list);
-    drawBar(list.slice(0,10));
-    setStatus('Agregat siap.');
-  }catch(e){ setStatus('Ralat: ' + e.message); console.error(e); }
-}
-async function loadPatients(){
-  const start=$('#startDate').value, end=$('#endDate').value;
-  const code=$('#diagCode').value.trim(), area=$('#area').value.trim();
-  if(!start||!end) return alert('Pilih tarikh mula & tamat.');
-  setStatus('Memuat senarai pesakit (ditapis)...');
-  try{
-    const r = await callAPI('list_patients', { start, end, code, area });
-    patients = (r.items||[]).map(x=>({
-      name: x.name || '',
-      age: x.age || '',
-      diag: toShortText(x.diag || ''),
-      code: x.code || '',
-      area: toShortArea(x.area || ''),
-      date: x.date || '',
-      phone: x.phone || ''
-    }));
-    page=0; renderPatients();
-    $('#kpiProspect').textContent = patients.length;
-    setStatus('Siap memuat senarai pesakit.');
-  }catch(e){ setStatus('Ralat: ' + e.message); console.error(e); }
-}
-function renderPatients(){
-  const tbody = $('#tblPatients tbody'); tbody.innerHTML = '';
-  const start = page*pageSize, end = Math.min(start+pageSize, patients.length);
-  for(let i=start;i<end;i++){
-    const p = patients[i];
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${p.name}</td>
-      <td>${p.age}</td>
-      <td>${p.diag}</td>
-      <td>${p.code}</td>
-      <td>${p.area}</td>
-      <td>${p.date}</td>
-      <td>${p.phone}</td>`;
-    tbody.appendChild(tr);
+  // === 6) ACTION HANDLERS (contoh) ===
+  async function startSync() {
+    const start=$('#startDate').value, end=$('#endDate').value;
+    if (!start || !end) return alert('Pilih tarikh mula & tamat.');
+    try {
+      setStatus('Memulakan sync…');
+      const r = await callAPI('sync_range', { start, end });
+      setOut(r);
+      setStatus('Sync selesai. Rekod baharu: ' + (r.inserted||0));
+    } catch (e) { setStatus('Ralat: ' + e.message); setOut(e.message); }
   }
-  $('#patientInfo').textContent = `Jumlah: ${patients.length} (mukasurat ${patients.length? (page+1):0}/${Math.max(1,Math.ceil(patients.length/pageSize))})`;
-  $('#btnPrev').disabled = page===0;
-  $('#btnNext').disabled = (page+1)>=Math.ceil(patients.length/pageSize);
-}
-function exportPatients(){
-  if(!patients.length) return alert('Tiada data pesakit untuk dieksport.');
-  const header = ['name','age','diagnose','code','area','date','phone'];
-  const rows = patients.map(p=>[p.name,p.age,p.diag,p.code,p.area,p.date,p.phone]);
-  const csv = [header].concat(rows)
-    .map(r=>r.map(c=>String(c).replaceAll('"','""')).map(c=>`"${c}"`).join(','))
-    .join('\n');
-  const blob = new Blob([csv], {type:'text/csv'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href=url; a.download='patients_filtered.csv'; a.click(); URL.revokeObjectURL(url);
-}
-async function deleteRange(){
-  const start=$('#startDate').value, end=$('#endDate').value;
-  if(!start||!end) return alert('Pilih tarikh mula & tamat.');
-  if(!confirm(`Padam data dalam julat ${start} → ${end}?`)) return;
-  setStatus('Memadam data julat tarikh...');
-  try{
-    const r = await callAPI('delete_range', { start, end });
-    setStatus('Padam siap. Dipadam: ' + (r.deleted||0));
-  }catch(e){ setStatus('Ralat: ' + e.message); console.error(e); }
-}
-async function sortData(){
-  const start=$('#startDate').value, end=$('#endDate').value;
-  if(!start||!end) return alert('Pilih tarikh mula & tamat.');
-  setStatus('Menyusun data di Sheet...');
-  try{
-    await callAPI('sort_sheet', { start, end });
-    setStatus('Susun siap.');
-  }catch(e){ setStatus('Ralat: ' + e.message); console.error(e); }
-}
+  async function computeAggregate() {
+    const start=$('#startDate').value, end=$('#endDate').value;
+    if (!start || !end) return alert('Pilih tarikh mula & tamat.');
+    try {
+      setStatus('Mengira agregat…');
+      const r = await callAPI('compute_aggregate', { start, end });
+      setOut(r);
+      setStatus('Agregat siap.');
+    } catch (e) { setStatus('Ralat: ' + e.message); setOut(e.message); }
+  }
+  async function loadPatients() {
+    const start=$('#startDate').value, end=$('#endDate').value;
+    const code=$('#diagCode').value.trim(), area=$('#area').value.trim();
+    if (!start || !end) return alert('Pilih tarikh mula & tamat.');
+    try {
+      setStatus('Memuat senarai pesakit…');
+      const r = await callAPI('list_patients', { start, end, code, area });
+      setOut(r);
+      setStatus('Siap.');
+    } catch (e) { setStatus('Ralat: ' + e.message); setOut(e.message); }
+  }
 
-/** ===================== CHARTS ===================== **/
-function drawDonut(list){
-  const labels = list.map(d=>d.name), values = list.map(d=>d.pct);
-  const ctx = document.getElementById('chartDonut');
-  if (donutChart) donutChart.destroy();
-  donutChart = new Chart(ctx, {
-    type:'doughnut',
-    data:{ labels, datasets:[{ data: values }] },
-    options:{ plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label:(c)=>`${c.label}: ${c.raw}%` } }}, cutout:'60%' }
+  // === 7) INIT UI ===
+  window.addEventListener('load', () => {
+    // Papar origin
+    $('#originText').textContent = location.origin;
+
+    // Tarikh lalai = hari ini
+    const t=new Date(); $('#startDate').value=fmt(t); $('#endDate').value=fmt(t);
+
+    // Shortcuts
+    $('#btnToday')?.addEventListener('click', () => {
+      const d=new Date(); $('#startDate').value=fmt(d); $('#endDate').value=fmt(d);
+    });
+    $('#btnMonth')?.addEventListener('click', () => {
+      const d=new Date(), s=new Date(d.getFullYear(), d.getMonth(), 1), e=new Date(d.getFullYear(), d.getMonth()+1, 0);
+      $('#startDate').value=fmt(s); $('#endDate').value=fmt(e);
+    });
+    $('#btnYear')?.addEventListener('click', () => {
+      const d=new Date(), s=new Date(d.getFullYear(),0,1), e=new Date(d.getFullYear(),11,31);
+      $('#startDate').value=fmt(s); $('#endDate').value=fmt(e);
+    });
+
+    // Buttons
+    $('#loginBtn')?.addEventListener('click', openBroker);
+    $('#btnSignOut')?.addEventListener('click', ()=>location.reload());
+    $('#btnSync')?.addEventListener('click', startSync);
+    $('#btnAggregate')?.addEventListener('click', computeAggregate);
+    $('#btnLoadPatients')?.addEventListener('click', loadPatients);
   });
-}
-function drawBar(list){
-  const labels = list.map(d=>d.name), values = list.map(d=>d.count);
-  const ctx = document.getElementById('chartBar');
-  if (barChart) barChart.destroy();
-  barChart = new Chart(ctx, {
-    type:'bar',
-    data:{ labels, datasets:[{ data: values }] },
-    options:{ plugins:{ legend:{ display:false }}, scales:{ x:{ ticks:{} }, y:{ ticks:{} } } }
-  });
-}
 </script>
 </body>
 </html>
