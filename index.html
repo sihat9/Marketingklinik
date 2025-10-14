@@ -219,7 +219,7 @@
             <table class="table align-middle" id="tbl">
               <thead>
                 <tr>
-                  <th>#</th><th>Nama Pesakit</th><th>Umur</th><th>Diagnosis</th><th>Kawasan</th><th>Tarikh Lawatan</th><th>No. Telefon</th><th>WhatsApp</th>
+                  <th>#</th><th>Nama Pesakit</th><th>Umur</th><th>Diagnosis</th><th>Tarikh Lawatan</th><th>No. Telefon</th><th>WhatsApp</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -338,6 +338,55 @@ let ID_TOKEN=null;
 let donutChart, barChart;
 let CUR_PAGE=1;
 
+/* ===== Fallback Taxonomy (client-side) ===== */
+const DEFAULT_TAXONOMY = [
+  { code:'URTI',  name:'Jangkitan Pernafasan Atas', re: /(demam|selse?ma|selesema|flu(?!\s*(shot|vaksin|vaccine))|batuk|sakit\s*tekak|urti)/i },
+  { code:'INFLUENZA', name:'Influenza',              re: /\b(influenza|flu)\b(?!\s*(shot|vaksin|vaccine))/i },
+  { code:'GI',    name:'Gastrointestinal',           re: /(cirit|muntah|diarrh(oe|ea)a|gastr(it)?ik|sakit\s*perut)/i },
+  { code:'MSK',   name:'Muskuloskeletal',            re: /(sakit\s*(belakang|pinggang|kaki|bahu|tangan)|\bmsk\b|sprain|strain|terseliuh)/i },
+  { code:'DERM',  name:'Kulit',                      re: /(ruam|gatal|eczema|dermatitis|kurap|tinea|hfmd)/i },
+  { code:'EYE',   name:'Mata',                       re: /(konjunktivit|conjunctiv|mata\s*merah)/i },
+  { code:'CARD',  name:'Jantung',                    re: /(angina|miokard|myocard|ische?mi|sakit\s*jantung|cardio)/i },
+  { code:'HEAR',  name:'Pendengaran',                re: /(telinga|pendengaran|hearing|otitis|ear\s*pain|tinnitus)/i },
+  { code:'VACC',  name:'Vaksin',                     re: /\b(vaksin|vaccine|imunisasi|booster)\b/i },
+  { code:'DIAR',  name:'Cirit-birit',                re: /(cirit|diarrh(oe|ea)a)/i },
+  { code:'TONSIL',name:'Tonsil / Tonsillitis',       re: /(tonsil(it|l)itis|tonsil)/i },
+  { code:'CHK',   name:'Pemeriksaan Am',             re: /(medical( |-)check(up)?|screen(ing)?|\bmcu?\b)/i }
+];
+const norm = s => String(s||'').toLowerCase();
+function hasNegationAround(text, idx){
+  const left = text.slice(Math.max(0,idx-40), idx);
+  return /\b(tak|tidak|tiada|no|bukan|x)\b/i.test(left);
+}
+function classifyLocal(text){
+  const t = norm(text).replace(/<br\s*\/?>/gi,' ');
+  const hits = new Set();
+  for (const x of DEFAULT_TAXONOMY){
+    x.re.lastIndex = 0;
+    let m, found=false;
+    while((m = x.re.exec(t)) !== null){
+      if (!hasNegationAround(t,m.index||0)){ found=true; break; }
+    }
+    if (found) hits.add(x.code);
+  }
+  return [...hits];
+}
+function buildSummaryFromPatients(rows){
+  const counts = {};
+  let labeled = 0;
+  rows.forEach(r=>{
+    const labs = classifyLocal(r.diagnosisText||'');
+    if (labs.length){ labeled++; labs.forEach(c=>counts[c]=(counts[c]||0)+1); }
+  });
+  const list = Object.entries(counts).map(([code,count])=>{
+    const item = DEFAULT_TAXONOMY.find(x=>x.code===code);
+    const name = item?item.name:code;
+    const pct  = labeled ? Math.round(count*1000/labeled)/10 : 0;
+    return { code, name, count, pct };
+  }).sort((a,b)=>b.count-a.count);
+  return { labeled, list };
+}
+
 /************ DOM helpers ************/
 const $ = (q)=>document.querySelector(q);
 const show = el => el.classList.remove('hidden');
@@ -437,18 +486,30 @@ async function loadSummary(){
   const s=$('#startDate').value, e=$('#endDate').value;
   updateStatus('Memuat ringkasan…', 30);
   try{
+    // Cuba ringkasan dari server dahulu
     await callAPI('compute_range',{ start:s, end:e });
-    const data=await callAPI('get_summary_range',{ start:s, end:e });
-    const labeled=(data && data.labeled)||0;
-    const rows=(data && data.rows)||[];
+    let data=await callAPI('get_summary_range',{ start:s, end:e });
+    let labeled=(data && data.labeled)||0;
+    let rows=(data && data.rows)||[];
+
+    // Fallback: kira daripada senarai pesakit kalau kosong
+    if (!labeled || !rows.length){
+      const res=await callAPI('patients',{ startISO:s, endISO:e, page:1, pageSize:500 });
+      const fb = buildSummaryFromPatients(res.rows||[]);
+      labeled = fb.labeled;
+      rows = fb.list.map(it=>[0,0,s,e,it.code,it.name,it.count,it.pct]);
+      $('#legend1').innerHTML = fmtPeriod(s,e) + ' <span class="badge text-bg-light ms-2">Local calc</span>';
+      $('#legend2').innerHTML = fmtPeriod(s,e) + ' <span class="badge text-bg-light ms-2">Local calc</span>';
+    }else{
+      $('#legend1').textContent=fmtPeriod(s,e);
+      $('#legend2').textContent=fmtPeriod(s,e);
+    }
+    $('#legendPeriod').textContent=fmtPeriod(s,e);
 
     $('#kpiLabeled').textContent=labeled.toLocaleString();
     $('#kpiCats').textContent=new Set(rows.map(r=>r[4])).size||0;
     const top=rows.slice().sort((a,b)=>b[6]-a[6])[0];
     $('#kpiTop').textContent=top?top[5]:'-';
-    $('#legend1').textContent=fmtPeriod(s,e);
-    $('#legend2').textContent=fmtPeriod(s,e);
-    $('#legendPeriod').textContent=fmtPeriod(s,e);
 
     const list = rows.map(r=>({ name:r[5], code:r[4], count:r[6], pct:r[7] }))
                      .sort((a,b)=>b.count-a.count);
@@ -548,7 +609,7 @@ async function loadPatients(updateSummary=true){
 function renderPatients(rows){
   const tb=$('#tbl tbody'); tb.innerHTML='';
   if (!rows.length){
-    tb.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-muted">Tiada data ditemui untuk penapis yang dipilih</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted">Tiada data ditemui untuk penapis yang dipilih</td></tr>`;
     return;
   }
   rows.forEach((r,i)=>{
@@ -559,7 +620,6 @@ function renderPatients(rows){
         <td>${escapeHTML(r.name||'-')}</td>
         <td>${r.age||'-'}</td>
         <td><div class="fw-medium">${escapeHTML(shortenDiag(r.diagnosisText||''))}</div>${r.diagnosisCodes?`<small class="text-muted">${escapeHTML(r.diagnosisCodes)}</small>`:''}</td>
-        <td>${escapeHTML(shortenArea(r.area||''))}</td>
         <td>${r.visitDate||'-'}</td>
         <td>${escapeHTML(formatPhone(r.phone))||'-'}</td>
         <td>${wa?`<a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="${wa}"><i class="bi bi-whatsapp"></i></a>`:'-'}</td>
@@ -568,7 +628,6 @@ function renderPatients(rows){
 }
 
 function shortenDiag(t){ if(!t) return ''; const s=String(t); const m=s.split(/[\n\.\,;|]/)[0]; return (m||s).trim().slice(0,60); }
-function shortenArea(a){ if(!a) return ''; const parts=String(a).split(',').map(x=>x.trim()).filter(Boolean); const last2=parts.slice(-2).join(', '); return last2.replace(/\b\w/g, c=>c.toUpperCase()); }
 function formatPhone(phone){ if(!phone) return ''; const c=String(phone).replace(/\D/g,''); if(c.length===10) return c.replace(/(\d{3})(\d{3})(\d{4})/,'$1-$2-$3'); if(c.length===11) return c.replace(/(\d{3})(\d{4})(\d{4})/,'$1-$2-$3'); return phone; }
 function escapeHTML(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
@@ -625,15 +684,15 @@ async function sortRange(){
   }catch(err){ updateStatus('Susun gagal: ' + err.message, 0); }
 }
 
-/************ CSV EXPORT ************/
+/************ CSV EXPORT (alamat disorok) ************/
 function exportCSV(){
   const rows=[...document.querySelectorAll('#tbl tbody tr')].map(tr=>{
     const t=tr.querySelectorAll('td');
-    return { name:t[1]?.textContent||'', age:t[2]?.textContent||'', diagnosis:t[3]?.textContent||'', area:t[4]?.textContent||'', date:t[5]?.textContent||'', phone:t[6]?.textContent||'' };
+    return { name:t[1]?.textContent||'', age:t[2]?.textContent||'', diagnosis:t[3]?.textContent||'', date:t[4]?.textContent||'', phone:t[5]?.textContent||'' };
   });
   if (!rows.length){ alert('Tiada data untuk dieksport'); return; }
-  const header=['Nama','Umur','Diagnosis','Kawasan','Tarikh','Telefon'];
-  const csv=[header].concat(rows.map(r=>[r.name,r.age,r.diagnosis,r.area,r.date,r.phone]))
+  const header=['Nama','Umur','Diagnosis','Tarikh','Telefon'];
+  const csv=[header].concat(rows.map(r=>[r.name,r.age,r.diagnosis,r.date,r.phone]))
     .map(a=>a.map(f=>`"${String(f).replace(/"/g,'""')}"`).join(',')).join('\n');
   const url=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:'text/csv;charset=utf-8;'}));
   const a=document.createElement('a'); a.href=url; a.download=`pesakit_${$('#startDate').value}_hingga_${$('#endDate').value}.csv`; a.click(); URL.revokeObjectURL(url);
