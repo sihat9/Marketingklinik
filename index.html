@@ -91,6 +91,7 @@
         <button id="btnSync"        class="btn btn-warning btn-sm"><i class="bi bi-arrow-down-up"></i> Sync (Yezza→Sheet)</button>
         <button id="btnAggregate"   class="btn btn-primary btn-sm"><i class="bi bi-clipboard2-data"></i> Kira Agregat</button>
         <button id="btnLoadPatients" class="btn btn-success btn-sm"><i class="bi bi-people"></i> Muat Pesakit (ditapis)</button>
+        <button id="btnMarketing" class="btn btn-info btn-sm text-white"><i class="bi bi-graph-up"></i> Analisis Marketing</button>
       </div>
 
       <div id="status" class="small muted mt-2">Sedia.</div>
@@ -99,6 +100,15 @@
     <div class="card p-3">
       <h5 class="mb-2">Output (ringkas)</h5>
       <pre id="out" class="small mb-0"></pre>
+    </div>
+
+    <div class="card p-3 mt-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0">Analisis Marketing (Yezza)</h5>
+        <span class="badge bg-info-subtle text-info-emphasis small">Beta</span>
+      </div>
+      <p class="muted small">Gunakan penapis di atas untuk menjana cerapan sasaran pelanggan, prestasi kempen, dan saranan tindakan.</p>
+      <div id="insightsBody" class="small"></div>
     </div>
   </div>
 </div>
@@ -138,6 +148,8 @@ window.onload = () => {
   $('#btnSync')?.addEventListener('click', startSync);
   $('#btnAggregate')?.addEventListener('click', computeAggregate);
   $('#btnLoadPatients')?.addEventListener('click', loadPatients);
+  $('#btnMarketing')?.addEventListener('click', analyzeMarketing);
+  renderInsights(null);
 
   // Render GIS button
   if (!window.google || !google.accounts || !google.accounts.id){
@@ -213,6 +225,103 @@ async function loadPatients(){
     setOut(r);
     setStatus('Siap.');
   }catch(e){ setStatus('Ralat: ' + e.message); setOut(e.message); }
+}
+
+function renderInsights(data){
+  const container = $('#insightsBody');
+  if (!container) return;
+
+  const fmtNumber = (value) => typeof value === 'number'
+    ? value.toLocaleString('ms-MY', { maximumFractionDigits: 2 })
+    : value;
+
+  const formatKey = (key) => key
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const buildMetricCards = (metrics) => {
+    if (!metrics || typeof metrics !== 'object') return '';
+    const entries = Object.entries(metrics).filter(([,v]) => v !== undefined && v !== null);
+    if (!entries.length) return '';
+    return `
+      <div class="row g-2 mb-3">
+        ${entries.map(([k,v]) => `
+          <div class="col-12 col-md-4">
+            <div class="border rounded-3 p-3 h-100">
+              <div class="muted text-uppercase small mb-1">${formatKey(k)}</div>
+              <div class="h5 mb-0">${fmtNumber(v)}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>`;
+  };
+
+  const buildList = (items, title, icon) => {
+    if (!Array.isArray(items) || !items.length) return '';
+    return `
+      <div class="mb-3">
+        <div class="fw-semibold mb-1"><i class="bi ${icon} me-1"></i>${title}</div>
+        <ul class="mb-0 ps-3">
+          ${items.map((item) => `<li>${typeof item === 'string' ? item : Object.entries(item).map(([k,v]) => `<strong>${formatKey(k)}:</strong> ${fmtNumber(v)}`).join(', ')}</li>`).join('')}
+        </ul>
+      </div>`;
+  };
+
+  const buildTable = (rows, title) => {
+    if (!Array.isArray(rows) || !rows.length) return '';
+    const keys = Object.keys(rows[0] || {});
+    if (!keys.length) return '';
+    return `
+      <div class="mb-3">
+        <div class="fw-semibold mb-2"><i class="bi bi-bullseye me-1"></i>${title}</div>
+        <div class="table-responsive">
+          <table class="table table-sm mb-0 align-middle">
+            <thead class="table-light">
+              <tr>${keys.map((key) => `<th scope="col">${formatKey(key)}</th>`).join('')}</tr>
+            </thead>
+            <tbody>
+              ${rows.map((row) => `
+                <tr>${keys.map((key) => `<td>${fmtNumber(row[key]) ?? '-'}</td>`).join('')}</tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  };
+
+  let html = '';
+  html += buildMetricCards(data?.summary || data?.metrics);
+  html += buildTable(data?.channels || data?.channel_breakdown, 'Prestasi Saluran');
+  html += buildTable(data?.campaigns, 'Prestasi Kempen');
+  html += buildList(data?.top_keywords, 'Kata Kunci Teratas', 'bi-hash');
+  html += buildList(data?.conversion_trends, 'Trend Penukaran', 'bi-activity');
+  html += buildList(data?.recommendations, 'Saranan Tindakan', 'bi-lightbulb');
+
+  if (!html) {
+    html = `<div class="muted">Tiada cerapan khusus ditemui. Data mentah dipaparkan di bawah.</div>`;
+    if (data) {
+      html += `<pre class="mt-2">${JSON.stringify(data, null, 2)}</pre>`;
+    }
+  }
+
+  container.innerHTML = html;
+}
+
+async function analyzeMarketing(){
+  const start=$('#startDate').value, end=$('#endDate').value;
+  const code=$('#diagCode').value.trim(), area=$('#area').value.trim();
+  if (!start || !end) return alert('Pilih tarikh mula & tamat.');
+  try{
+    setStatus('Menjana analisis marketing…');
+    const r = await callAPI('marketing_insights', { start, end, code, area });
+    setOut(r);
+    renderInsights(r);
+    setStatus('Analisis marketing siap.');
+  }catch(e){
+    setStatus('Ralat: ' + e.message);
+    setOut(e.message);
+    renderInsights(null);
+  }
 }
 </script>
 </body>
