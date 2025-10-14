@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="ms">
 <head>
-  <!-- CSP sesuai untuk GitHub Pages + GIS + Apps Script -->
+  <!-- ✅ CSP dikemas kini: benarkan Apps Script, GIS & jsDelivr -->
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none';
                  script-src 'self' 'nonce-n123' https://accounts.google.com https://accounts.gstatic.com https://cdn.jsdelivr.net;
                  style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://accounts.google.com;
                  img-src 'self' data:;
                  font-src 'self' https://cdn.jsdelivr.net;
-                 connect-src https://script.google.com https://script.googleusercontent.com;
+                 connect-src 'self' https://script.google.com https://script.googleusercontent.com https://accounts.google.com https://accounts.gstatic.com https://cdn.jsdelivr.net;
                  frame-src https://accounts.google.com;">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -35,7 +35,6 @@
     .stat-icon{display:flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:12px;background:rgba(26,115,232,.1);color:var(--primary);font-size:1.25rem}
     .stat-content{flex:1}.stat-value{font-size:1.5rem;font-weight:700;color:var(--text-primary);line-height:1.2}
     .stat-label{font-size:.875rem;color:var(--text-secondary);margin-top:.25rem}
-    .chip{padding:.25rem .75rem;border-radius:16px;background:#e8f0fe;color:var(--primary);font-size:.75rem;font-weight:500}
     .table thead th{background:var(--light-bg);border-bottom:2px solid var(--border);font-weight:600;color:var(--text-secondary);font-size:.875rem;text-transform:uppercase;letter-spacing:.5px}
     .table tbody tr{border-bottom:1px solid var(--border)}
     .table tbody tr:hover{background-color:rgba(26,115,232,.04)}
@@ -60,6 +59,8 @@
     .progress-indicator{display:inline-flex;align-items:center;gap:.5rem;font-size:.875rem;color:var(--text-secondary)}
     .progress-bar{width:120px;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
     .progress-fill{height:100%;background:var(--primary);width:0%;transition:width .3s ease}
+    .health-dot{display:inline-block;width:10px;height:10px;border-radius:50%}
+    .health-ok{background:#34a853}.health-bad{background:#ea4335}
     @media (max-width:768px){.user-info{flex-direction:column;align-items:flex-end;gap:.5rem}}
   </style>
 </head>
@@ -70,6 +71,7 @@
       <div>
         <div class="brand h3 mb-1">Dashboard Pemasaran Klinik</div>
         <div class="muted">Analisis data pesakit untuk strategi pemasaran yang lebih efektif</div>
+        <div id="healthLine" class="small mt-1"></div>
       </div>
       <div class="user-info">
         <span id="whoami" class="small muted"></span>
@@ -388,7 +390,7 @@
   function escapeHTML(s){ return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
   function formatPhone(phone){ if (!phone) return ''; const cleaned=String(phone).replace(/\D/g,''); if(cleaned.length===10) return cleaned.replace(/(\d{3})(\d{3})(\d{4})/,'$1-$2-$3'); if(cleaned.length===11) return cleaned.replace(/(\d{3})(\d{4})(\d{4})/,'$1-$2-$3'); return phone; }
   function copyText(txt){ navigator.clipboard?.writeText(txt).then(()=>toast('Disalin ke clipboard')).catch(()=>alert('Gagal copy.')); }
-  function toast(msg){ const d=document.createElement('div'); d.className='position-fixed bottom-0 end-0 m-3 alert alert-success py-2 px-3'; d.textContent=msg; document.body.appendChild(d); setTimeout(()=>d.remove(),1800); }
+  function toast(msg,type='success'){ const d=document.createElement('div'); d.className=`position-fixed bottom-0 end-0 m-3 alert alert-${type} py-2 px-3`; d.textContent=msg; document.body.appendChild(d); setTimeout(()=>d.remove(),1800); }
   function updateStatus(message, progress){ $('#statusLine').textContent=message; $('#progressFill').style.width=`${progress}%`; }
   function decodeJwt(token){ const p=token.split('.')[1]; const b64=p.replace(/-/g,'+').replace(/_/g,'/'); const s=decodeURIComponent(atob(b64).split('').map(c=>'%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)).join('')); try{ return JSON.parse(s); }catch(_){ return {}; } }
 
@@ -434,6 +436,9 @@
       $('#whoami').textContent = payload.name || payload.email || 'Pengguna';
       $('#userAvatar').textContent = (payload.name || payload.email || 'U').charAt(0).toUpperCase();
 
+      // Health check awal
+      await showHealth();
+
       // Muat komponen
       await loadSummary();
       await loadPatients();
@@ -460,6 +465,20 @@
     const data = await res.json();
     if (data && data.error) throw new Error(data.error);
     return data;
+  }
+
+  async function showHealth(){
+    try{
+      const h = await callAPI('health',{});
+      const ok = h && h.ok;
+      const cfg = h && h.cfg || {};
+      $('#healthLine').innerHTML = `<span class="health-dot ${ok?'health-ok':'health-bad'} me-1"></span>
+        <span class="small ${ok?'text-success':'text-danger'}">${ok?'Backend OK':'Backend bermasalah'}</span>
+        <span class="small ms-2 muted">ClientID:${cfg.clientIdSet?'✔':'✖'} Token:${cfg.hasToken?'✔':'✖'} Clinic:${cfg.hasClinic?'✔':'✖'}</span>`;
+      if (!ok) toast('Backend tidak sihat. Semak Script Properties/Deployment.', 'danger');
+    }catch(e){
+      $('#healthLine').innerHTML = `<span class="health-dot health-bad me-1"></span><span class="small text-danger">Health check gagal.</span>`;
+    }
   }
 
   /************ SUMMARY & CHARTS ************/
