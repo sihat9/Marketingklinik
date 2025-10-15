@@ -198,7 +198,7 @@
                 <h6 class="mb-0">Taburan Mengikut Kategori <span id="legendCalc" class="badge text-bg-light ms-2"></span></h6>
                 <span id="legend1" class="small muted"></span>
               </div>
-              <div class="small text-muted mb-2">Klik mana-mana kategori untuk tapis jadual pesakit & paparkan trend.</div>
+              <div class="small text-muted mb-2">Klik mana-mana kategori untuk tapis jadual pesakit.</div>
               <div class="chart-h"><canvas id="chartDonut"></canvas></div>
             </div>
           </div>
@@ -208,7 +208,7 @@
                 <h6 class="mb-0">Top Kategori Diagnosis</h6>
                 <span id="legend2" class="small muted"></span>
               </div>
-              <div class="small text-muted mb-2">Klik bar untuk tapis ikut kategori & paparkan trend.</div>
+              <div class="small text-muted mb-2">Klik bar untuk tapis ikut kategori.</div>
               <div class="chart-h"><canvas id="chartBar"></canvas></div>
             </div>
           </div>
@@ -223,48 +223,25 @@
           <div id="quickCats" class="d-flex flex-wrap gap-2 mt-2"></div>
         </div>
 
-        <!-- Graf Kehadiran & Trend Kategori -->
-        <div class="row g-3 mb-3">
-          <div class="col-12 col-xl-6">
-            <div class="card p-3 mb-3">
-              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div class="d-flex align-items-center gap-2">
-                  <h6 class="mb-0">Graf Kehadiran Pesakit</h6>
-                  <span id="attnInfo" class="badge text-bg-light"></span>
-                </div>
-                <div class="btn-group" role="group" aria-label="attn-range">
-                  <button class="btn btn-outline-dark btn-sm btn-range" id="attn7"  type="button">7H</button>
-                  <button class="btn btn-outline-dark btn-sm btn-range" id="attn14" type="button">14H</button>
-                  <button class="btn btn-outline-dark btn-sm btn-range active" id="attn30" type="button">30H</button>
-                  <button class="btn btn-outline-dark btn-sm btn-range" id="attn60" type="button">60H</button>
-                  <button class="btn btn-outline-dark btn-sm btn-range" id="attn365" type="button">1T</button>
-                </div>
-              </div>
-              <div class="chart-h-lg"><canvas id="chartAttn"></canvas></div>
+        <!-- Graf Kehadiran -->
+        <div class="card p-3 mb-3">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <h6 class="mb-0">Graf Kehadiran Pesakit</h6>
+              <span id="attnInfo" class="badge text-bg-light"></span>
+            </div>
+            <div class="btn-group" role="group" aria-label="attn-range">
+              <button class="btn btn-outline-dark btn-sm btn-range" id="attn7"  type="button">7H</button>
+              <button class="btn btn-outline-dark btn-sm btn-range" id="attn14" type="button">14H</button>
+              <button class="btn btn-outline-dark btn-sm btn-range active" id="attn30" type="button">30H</button>
+              <button class="btn btn-outline-dark btn-sm btn-range" id="attn60" type="button">60H</button>
+              <button class="btn btn-outline-dark btn-sm btn-range" id="attn365" type="button">1T</button>
             </div>
           </div>
-
-          <div class="col-12 col-xl-6">
-            <div class="card p-3 mb-3">
-              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div class="d-flex align-items-center gap-2">
-                  <h6 class="mb-0">Trend Mengikut Kategori <span id="catSeriesBadge" class="badge text-bg-light d-none"></span></h6>
-                </div>
-                <div class="d-flex align-items-center gap-2">
-                  <div class="btn-group" role="group" aria-label="cat-range">
-                    <button class="btn btn-outline-dark btn-sm" id="catGranDay"  type="button">Harian</button>
-                    <button class="btn btn-outline-dark btn-sm" id="catGranMonth" type="button">Bulanan</button>
-                  </div>
-                  <button class="btn btn-outline-secondary btn-sm" id="btnClearCat" type="button"><i class="bi bi-x-circle"></i> Buang Pilihan</button>
-                </div>
-              </div>
-              <div class="small text-muted mb-2" id="catSeriesHint">Klik kategori pada Donut/Bar/Chip untuk melihat trend siri masa mengikut kategori.</div>
-              <div class="chart-h-lg"><canvas id="chartCatSeries"></canvas></div>
-            </div>
-          </div>
+          <div class="chart-h-lg"><canvas id="chartAttn"></canvas></div>
         </div>
 
-        <!-- Jadual Pesakit -->
+        <!-- Jadual Pesakit (tanpa alamat; diagnosis = kod sahaja) -->
         <div class="card p-3">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <h6 class="mb-0">Senarai Pesakit (Ditapis)</h6>
@@ -415,26 +392,21 @@ const BACKEND_URL = 'https://script.google.com/macros/s/AKfycby1A1DrDRsoW3CP9tDI
 
 /************ STATE ************/
 let ID_TOKEN=null;
-let donutChart, barChart, attnChart, catChart;
+let donutChart, barChart, attnChart;
 let CUR_PAGE=1;
 let LAST_PATIENT_ROWS=[];
 let AUTO_VAX_SESSION_KEYS=new Set();
 let CURRENT_LIST_DONUT=[], CURRENT_LIST_BAR=[];
 let CODE_NAME_MAP = {}; // code -> friendly name
-let CURRENT_CAT_CODE = ''; // kategori untuk graf siri masa
-let CURRENT_CAT_GRAN = 'day'; // 'day' | 'month'
+const CHART_ANIM = false;
 
 /************ DOM helpers ************/
 const $ = (q)=>document.querySelector(q);
 const show = el => el.classList.remove('hidden');
 const hide = el => el.classList.add('hidden');
+const pickGran = () => $('#gYear').checked?'year':($('#gMonth').checked?'month':'day');
 const fmtPeriod = (s,e)=>`${s} → ${e}`;
 const Toast = { show(msg){ $('#toastBody').textContent=msg; const t=bootstrap.Toast.getOrCreateInstance($('#toast')); t.show(); } };
-
-/************ String helpers (FIX utama) ************/
-const safeStr = (v)=> (v==null ? '' : String(v)).trim();
-const digits  = (v)=> safeStr(v).replace(/\D/g,'');  // untuk WhatsApp/link
-const isBlank = (v)=> safeStr(v)==='';
 
 /************ AUTH + INIT ************/
 window.onload = () => {
@@ -445,8 +417,8 @@ window.onload = () => {
 
   // Actions
   $('#btnSignOut').addEventListener('click', ()=>location.reload());
-  $('#btnApply').addEventListener('click', ()=>{ CUR_PAGE=1; loadPatients(true); });
-  $('#btnClear').addEventListener('click', ()=>{ $('#filterDiag').value=''; $('#filterArea').value=''; CUR_PAGE=1; loadPatients(true); clearCategorySeries(); });
+  $('#btnApply').addEventListener('click', ()=>{ CUR_PAGE=1; loadPatients(true,{refreshGlobal:true}); });
+  $('#btnClear').addEventListener('click', ()=>{ $('#filterDiag').value=''; $('#filterArea').value=''; CUR_PAGE=1; loadPatients(true,{refreshGlobal:true}); });
   $('#btnPrev').addEventListener('click', ()=>{ if (CUR_PAGE>1){ CUR_PAGE--; loadPatients(false); } });
   $('#btnNext').addEventListener('click', ()=>{ CUR_PAGE++; loadPatients(false); });
   $('#pageSize').addEventListener('change', ()=>{ CUR_PAGE=1; loadPatients(false); });
@@ -465,18 +437,13 @@ window.onload = () => {
 
   // Attendance buttons
   ['attn7','attn14','attn30','attn60','attn365'].forEach(id=>{
-    $('#'+id).addEventListener('click', ()=>{
+    $('#'+id).addEventListener('click', async ()=>{
       document.querySelectorAll('.btn-range').forEach(b=>b.classList.remove('active'));
       $('#'+id).classList.add('active');
       const map={attn7:7, attn14:14, attn30:30, attn60:60, attn365:365};
-      drawAttendance(map[id]);
+      await drawAttendance(map[id]);
     });
   });
-
-  // Category series buttons
-  $('#catGranDay').addEventListener('click', ()=>{ CURRENT_CAT_GRAN='day'; refreshCategorySeries(); });
-  $('#catGranMonth').addEventListener('click', ()=>{ CURRENT_CAT_GRAN='month'; refreshCategorySeries(); });
-  $('#btnClearCat').addEventListener('click', ()=>{ clearCategorySeries(); applyCategoryFilter(''); });
 
   // Auto-vax manual scan button
   $('#btnScanVaxNow').addEventListener('click', ()=>scanVaccinations(LAST_PATIENT_ROWS,true));
@@ -502,8 +469,12 @@ async function onSignIn(resp){
     $('#userAvatar').textContent = (payload.name || 'U').charAt(0).toUpperCase();
 
     healthCheck();
-    await loadPatients(true);
-    await Promise.all([loadPricing(), loadTrends(), loadReactivation(), loadRepeatDue()]);
+
+    // Muat utama sekali (termasuk trends/reactivate)
+    await loadPatients(true, { refreshGlobal:true });
+
+    // Ringan
+    await Promise.all([loadPricing(), loadRepeatDue()]);
   }catch(e){
     console.error(e);
     $('#signinMsg').textContent='Log masuk gagal.';
@@ -538,23 +509,35 @@ async function healthCheck(){
   }
 }
 
-/************ SUMMARY & CHARTS + QUICK CATS ************/
+/************ SUMMARY (FAST PATH) ************/
+let LAST_SUMMARY_KEY = '';
+let LAST_SUMMARY_OBJ = null;
+
 async function loadSummary(){
   const s=$('#startDate').value, e=$('#endDate').value;
+  const key = `${s}|${e}`;
+  if (LAST_SUMMARY_KEY===key && LAST_SUMMARY_OBJ) return LAST_SUMMARY_OBJ;
+
   try{
-    await callAPI('compute_range',{ start:s, end:e });
-    const data=await callAPI('get_summary_range',{ start:s, end:e });
-    return data;
+    let data = await callAPI('get_summary_range',{ start:s, end:e });
+    if (!data.rows || !data.rows.length){
+      await callAPI('compute_range',{ start:s, end:e });
+      data = await callAPI('get_summary_range',{ start:s, end:e });
+    }
+    LAST_SUMMARY_KEY = key;
+    LAST_SUMMARY_OBJ = data || { labeled:0, rows:[] };
+    return LAST_SUMMARY_OBJ;
   }catch(err){
     console.warn('summary error:', err.message);
     return { labeled:0, rows:[] };
   }
 }
 
+/************ CHARTS + QUICK CATS ************/
 function buildLocalSummary(rows){
   const counts={}; let labeled=0;
   rows.forEach(r=>{
-    const codes=safeStr(r.diagnosisCodes).toUpperCase().split(/[,\s]+/).filter(Boolean);
+    const codes=(r.diagnosisCodes||'').toString().toUpperCase().split(/[,\s]+/).filter(Boolean);
     if (codes.length){ labeled++; codes.forEach(c=>counts[c]=(counts[c]||0)+1); }
   });
   const list=Object.entries(counts).map(([code,count])=>{
@@ -581,7 +564,7 @@ function drawDonut(list){
         const idx = el[0].index;
         const code = CURRENT_LIST_DONUT[idx]?.code || CURRENT_LIST_DONUT[idx]?.name;
         if (!code) return;
-        applyCategoryFilter(code, true);
+        applyCategoryFilter(code);
       }
     }
   });
@@ -601,7 +584,7 @@ function drawBar(list){
         const idx = el[0].index;
         const code = CURRENT_LIST_BAR[idx]?.code || CURRENT_LIST_BAR[idx]?.name;
         if (!code) return;
-        applyCategoryFilter(code, true);
+        applyCategoryFilter(code);
       }
     }
   });
@@ -633,101 +616,66 @@ function renderQuickCats(list){
     btn.title = (item.code && CODE_NAME_MAP[item.code] && CODE_NAME_MAP[item.code]!==item.code)
       ? `${item.code} • ${CODE_NAME_MAP[item.code]}`
       : (item.code || friendly);
-    btn.addEventListener('click', ()=>applyCategoryFilter(item.code || item.name, true));
+    btn.addEventListener('click', ()=>applyCategoryFilter(item.code || item.name));
     box.appendChild(btn);
   });
 
   highlightActiveChip();
 }
-function applyCategoryFilter(code, withSeries=false){
-  $('#filterDiag').value = safeStr(code).toUpperCase();
+function applyCategoryFilter(code){
+  $('#filterDiag').value = (code||'').toUpperCase();
   CUR_PAGE=1;
-  loadPatients(false);
+  loadPatients(false, { refreshGlobal:false });
   highlightActiveChip();
   const name = code ? (CODE_NAME_MAP[code] || code) : 'Semua kategori';
   $('#activeFilterMsg').textContent = `Penapis: ${name}`;
   Toast.show(code ? `Ditapis ikut kategori: ${name}` : 'Penapis kategori dibuang');
-
-  if (withSeries && code){
-    CURRENT_CAT_CODE = safeStr(code).toUpperCase();
-    refreshCategorySeries();
-  } else if (!code){
-    clearCategorySeries();
-  }
 }
 function highlightActiveChip(){
-  const code = safeStr($('#filterDiag').value).toUpperCase();
+  const code = ($('#filterDiag').value||'').trim().toUpperCase();
   document.querySelectorAll('#quickCats .cat-chip').forEach(btn=>{
-    const c = safeStr(btn.getAttribute('data-code')).toUpperCase();
+    const c = (btn.getAttribute('data-code')||'').toUpperCase();
     btn.classList.toggle('active', code && c===code);
     if (!code && btn.textContent.trim()==='Semua') btn.classList.add('active');
   });
 }
 
-/************ ATTENDANCE ************/
-function dateKey(d){ return d.toISOString().slice(0,10); }
-function addDays(d, n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+/************ ATTENDANCE (FAST VIA BACKEND) ************/
+async function drawAttendance(daysOrYear){
+  const days = daysOrYear===365 ? 365 : daysOrYear;
+  try{
+    const r = await callAPI('attendance_series',{ days });
+    const labels = r.series.map(x=>x.date);
+    const data   = r.series.map(x=>x.count);
 
-function buildAttendanceSeries(rows, days){
-  const today = new Date(); today.setHours(0,0,0,0);
-  let start = addDays(today, -days+1);
-  const map = new Map();
-  for(let i=0;i<days;i++){ const dk=dateKey(addDays(start,i)); map.set(dk,0); }
-  rows.forEach(r=>{
-    const v = new Date(r.visitDate); if(isNaN(+v)) return;
-    v.setHours(0,0,0,0);
-    const dk = dateKey(v);
-    if (map.has(dk)) map.set(dk, map.get(dk)+1);
-  });
-  const labels=[...map.keys()];
-  const data=[...map.values()];
-  const total=data.reduce((a,b)=>a+b,0);
-  return { labels, data, total };
-}
-function buildAttendanceYear(rows){
-  const now=new Date(); const start=new Date(now.getFullYear(), now.getMonth()-11, 1);
-  const buckets=new Map();
-  for(let i=0;i<12;i++){
-    const d=new Date(start.getFullYear(), start.getMonth()+i, 1);
-    const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    buckets.set(key,0);
-  }
-  rows.forEach(r=>{
-    const v=new Date(r.visitDate); if(isNaN(+v)) return;
-    const key=`${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,'0')}`;
-    if (buckets.has(key)) buckets.set(key, buckets.get(key)+1);
-  });
-  const labels=[...buckets.keys()];
-  const data=[...buckets.values()];
-  const total=data.reduce((a,b)=>a+b,0);
-  return { labels, data, total, monthly:true };
-}
-function drawAttendance(daysOrYear){
-  const ctx=$('#chartAttn');
-  if (attnChart) attnChart.destroy();
-  let series, title='';
-  if (daysOrYear===365){
-    series = buildAttendanceYear(LAST_PATIENT_ROWS);
-    title = `12 Bulan Terkini — Jumlah: ${series.total}`;
-  }else{
-    series = buildAttendanceSeries(LAST_PATIENT_ROWS, daysOrYear);
-    title = `${daysOrYear} Hari Terkini — Jumlah: ${series.total}`;
-  }
-  $('#attnInfo').textContent = title;
+    $('#attnInfo').textContent = (days===365)
+      ? `12 Bulan Terkini — Jumlah: ${r.total}`
+      : `${days} Hari Terkini — Jumlah: ${r.total}`;
 
-  attnChart = new Chart(ctx, {
-    type: 'line',
-    data: { labels: series.labels, datasets: [{ label: 'Kehadiran', data: series.data, fill: false, tension: 0.25, borderWidth: 2 }] },
-    options: { animation:false, plugins: { legend:{ display:false } }, scales: { y:{ beginAtZero:true, grid:{ color:'rgba(0,0,0,.05)'}}, x:{ grid:{ display:false } } }, maintainAspectRatio:false }
-  });
+    const ctx=$('#chartAttn');
+    if (attnChart) attnChart.destroy();
+    attnChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets: [{ label:'Kehadiran', data, fill:false, tension:0.25, borderWidth:2, pointRadius:0 }]},
+      options: {
+        animation: false,
+        plugins: { legend:{ display:false } },
+        scales: {
+          y: { beginAtZero:true, grid:{ color:'rgba(0,0,0,.05)'} },
+          x: { grid:{ display:false } }
+        },
+        maintainAspectRatio:false
+      }
+    });
+  }catch(e){
+    console.warn('attendance error:', e.message);
+  }
 }
 
 /************ TREND ALERTS & REACTIVATION ************/
 async function loadTrends(){
   try{
-    const diag=safeStr($('#filterDiag').value);
-    const area=safeStr($('#filterArea').value);
-    const r = await callAPI('trend_alerts',{ diagnosisCode:diag, areaQuery:area });
+    const r = await callAPI('trend_alerts',{});
     const arr = r.alerts || [];
     if (!arr.length){ $('#trendBox').innerHTML = 'Tiada alert signifikan buat masa ini.'; return; }
     $('#trendBox').innerHTML = arr.map(a=>`
@@ -741,20 +689,17 @@ async function loadTrends(){
 async function loadReactivation(){
   const tb = $('#tblReAct tbody'); if(!tb) return; tb.innerHTML='';
   try{
-    const diag=safeStr($('#filterDiag').value);
-    const area=safeStr($('#filterArea').value);
-    const r = await callAPI('reactivation_list',{ days:30, diagnosisCode:diag, areaQuery:area });
+    const r = await callAPI('reactivation_list',{ days:30 });
     const rows = r.rows || [];
     if (!rows.length){ tb.innerHTML = `<tr><td colspan="7" class="text-center text-muted">Tiada rekod.</td></tr>`; return; }
     rows.forEach((x,i)=>{
-      const wa = digits(x.phone);
-      const waUrl = wa?`https://wa.me/${wa}`:'';
-      const msg = encodeURIComponent(`Hai ${safeStr(x.name)}, ini klinik anda. Bagaimana keadaan selepas lawatan terakhir (${x.lastVisit})? Jika perlu bantuan/temujanji, balas mesej ini ya.`);
+      const wa = x.phone?`https://wa.me/${String(x.phone).replace(/\D/g,'')}`:'';
+      const msg = encodeURIComponent(`Hai ${x.name}, ini klinik anda. Bagaimana keadaan selepas lawatan terakhir (${x.lastVisit})? Jika perlu bantuan/temujanji, balas mesej ini ya.`);
       tb.insertAdjacentHTML('beforeend',`
         <tr>
-          <td>${i+1}</td><td>${escapeHTML(safeStr(x.name)||'-')}</td><td>${escapeHTML(formatPhone(x.phone)||'-')}</td>
-          <td>${escapeHTML(safeStr(x.lastCategory)||'-')}</td><td>${x.lastVisit}</td><td>${x.daysSilent}</td>
-          <td>${waUrl?`<a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="${waUrl}?text=${msg}"><i class="bi bi-whatsapp"></i></a>`:'-'}</td>
+          <td>${i+1}</td><td>${escapeHTML(x.name||'-')}</td><td>${escapeHTML(x.phone||'-')}</td>
+          <td>${escapeHTML(x.lastCategory||'-')}</td><td>${x.lastVisit}</td><td>${x.daysSilent}</td>
+          <td>${wa?`<a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="${wa}?text=${msg}"><i class="bi bi-whatsapp"></i></a>`:'-'}</td>
         </tr>`);
     });
   }catch(e){
@@ -763,15 +708,19 @@ async function loadReactivation(){
 }
 
 /************ PATIENTS ************/
-async function loadPatients(refreshSummary=true){
+async function loadPatients(refreshSummary=true, opts={}){
+  const { refreshGlobal=false } = opts;
   const s=$('#startDate').value, e=$('#endDate').value;
-  const diag=safeStr($('#filterDiag').value);
-  const area=safeStr($('#filterArea').value);
+  const diag=($('#filterDiag').value||'').trim();
+  const area=($('#filterArea').value||'').trim();
   const pageSize=Number($('#pageSize').value||100);
   updateStatus('Memuat senarai pesakit…', 50);
 
   try{
-    const res=await callAPI('patients',{ startISO:s, endISO:e, page:CUR_PAGE, pageSize, diagnosisCode:diag, areaQuery:area });
+    const res=await callAPI('patients',{
+      startISO:s, endISO:e, page:CUR_PAGE, pageSize,
+      diagnosisCode:diag, areaQuery:area
+    });
 
     LAST_PATIENT_ROWS = res.rows||[];
     renderPatients(LAST_PATIENT_ROWS);
@@ -781,57 +730,62 @@ async function loadPatients(refreshSummary=true){
     const to=Math.min(CUR_PAGE*pageSize,total);
     $('#pageInfo').textContent = `Jumlah: ${total.toLocaleString()} | Halaman ${CUR_PAGE} (${from}-${to})`;
 
-    // Summary
-    const sStr=$('#startDate').value, eStr=$('#endDate').value;
-    $('#legend1').textContent=fmtPeriod(sStr,eStr);
-    $('#legend2').textContent=fmtPeriod(sStr,eStr);
-    $('#legendPeriod').textContent=fmtPeriod(sStr,eStr);
+    // Legenda tarikh
+    $('#legend1').textContent=fmtPeriod(s,e);
+    $('#legend2').textContent=fmtPeriod(s,e);
+    $('#legendPeriod').textContent=fmtPeriod(s,e);
     $('#legendCalc').textContent='';
 
-    let data = await loadSummary();
+    // Summary (ambil/calc sekali, cache klien)
+    if (refreshSummary){
+      const data = await loadSummary();
 
-    CODE_NAME_MAP = {};
-    if (data.rows && data.rows.length){
-      data.rows.forEach(r=>{
-        const code=r[4], name=r[5];
-        if (code && name) CODE_NAME_MAP[code]=name;
-      });
+      CODE_NAME_MAP = {};
+      if (data.rows && data.rows.length){
+        data.rows.forEach(r=>{
+          const code=r[4], name=r[5];
+          if (code && name) CODE_NAME_MAP[code]=name;
+        });
+
+        $('#kpiLabeled').textContent=(data.labeled||0).toLocaleString();
+        $('#kpiCats').textContent=new Set(data.rows.map(r=>r[4])).size||0;
+        const top=data.rows.slice().sort((a,b)=>b[6]-a[6])[0];
+        $('#kpiTop').textContent=top?top[5]:'-';
+
+        const list = data.rows.map(r=>({ name:r[5], code:r[4], count:r[6], pct:r[7] })).sort((a,b)=>b.count-a.count);
+        drawDonut(list); drawBar(list.slice(0,8));
+        renderQuickCats(list);
+      }else{
+        const local=buildLocalSummary(LAST_PATIENT_ROWS);
+        $('#legendCalc').textContent='Local calc';
+        $('#kpiLabeled').textContent=local.labeled.toLocaleString();
+        $('#kpiCats').textContent=Object.keys(local.counts).length;
+        $('#kpiTop').textContent=local.topName||'-';
+        drawDonut(local.list); drawBar(local.list.slice(0,8));
+        renderQuickCats(local.list);
+      }
     }
 
-    if (data.rows && data.rows.length){
-      const labeled=(data.labeled)||0;
-      $('#kpiLabeled').textContent=labeled.toLocaleString();
-      const rows=data.rows||[];
-      $('#kpiCats').textContent=new Set(rows.map(r=>r[4])).size||0;
-      const top=rows.slice().sort((a,b)=>b[6]-a[6])[0];
-      $('#kpiTop').textContent=top?top[5]:'-';
-      const list = rows.map(r=>({ name:r[5], code:r[4], count:r[6], pct:r[7] })).sort((a,b)=>b.count-a.count);
-      drawDonut(list); drawBar(list.slice(0,8));
-      renderQuickCats(list);
-    }else{
-      const local=buildLocalSummary(LAST_PATIENT_ROWS);
-      $('#legendCalc').textContent='Local calc';
-      $('#kpiLabeled').textContent=local.labeled.toLocaleString();
-      $('#kpiCats').textContent=Object.keys(local.counts).length;
-      $('#kpiTop').textContent=local.topName||'-';
-      drawDonut(local.list); drawBar(local.list.slice(0,8));
-      renderQuickCats(local.list);
-    }
+    // Attendance ikut butang aktif
+    const activeBtn = document.querySelector('.btn-range.active');
+    const map={attn7:7,attn14:14,attn30:30,attn60:60,attn365:365};
+    const days = map[activeBtn?.id || 'attn30'] || 30;
+    await drawAttendance(days);
 
-    // Attendance default view = 30 hari
-    drawAttendance(30);
-    document.querySelectorAll('.btn-range').forEach(b=>b.classList.remove('active'));
-    $('#attn30').classList.add('active');
+    // Trend & Reactivation hanya ketika refreshGlobal (sign-in / tukar tarikh / selepas sync)
+    if (refreshGlobal){
+      await Promise.all([loadTrends(), loadReactivation()]);
+    }
 
     // Auto daftar vaksin (jika toggle on)
     if ($('#autoVaxSwitch')?.checked) {
-      await scanVaccinations(LAST_PATIENT_ROWS,false);
+      scanVaccinations(LAST_PATIENT_ROWS,false);
     }
 
-    const codeNow = safeStr($('#filterDiag').value).toUpperCase();
+    // kemas kini mesej penapis
+    const codeNow = ($('#filterDiag').value||'').trim().toUpperCase();
     $('#activeFilterMsg').textContent = `Penapis: ${codeNow? (CODE_NAME_MAP[codeNow]||codeNow) : 'Semua kategori'}`;
 
-    await Promise.all([loadTrends(), loadReactivation()]);
     updateStatus('Data dimuat', 100);
   }catch(err){
     console.error(err);
@@ -846,9 +800,9 @@ function renderPatients(rows){
     return;
   }
   rows.forEach((r,i)=>{
-    const wa = digits(r.phone);
-    const waUrl = wa?`https://wa.me/${wa}`:'';
-    const codes = safeStr(r.diagnosisCodes).toUpperCase().split(/[,\s]+/).filter(Boolean);
+    const phoneStr = String(r.phone||'');
+    const wa=phoneStr?`https://wa.me/${phoneStr.replace(/\D/g,'')}`:'';
+    const codes = String(r.diagnosisCodes||'').toUpperCase().split(/[,\s]+/).filter(Boolean);
     const chips = codes.length
       ? codes.map(c=>{
           const tip = CODE_NAME_MAP[c] && CODE_NAME_MAP[c]!==c ? ` title="${c} • ${CODE_NAME_MAP[c]}"` : ` title="${c}"`;
@@ -858,22 +812,22 @@ function renderPatients(rows){
     tb.insertAdjacentHTML('beforeend',`
       <tr>
         <td class="fw-semibold">${i+1 + (CUR_PAGE-1)*Number($('#pageSize').value||100)}</td>
-        <td>${escapeHTML(safeStr(r.name)||'-')}</td>
-        <td>${safeStr(r.age)||'-'}</td>
+        <td>${escapeHTML(r.name||'-')}</td>
+        <td>${r.age||'-'}</td>
         <td>${chips}</td>
-        <td>${safeStr(r.visitDate)||'-'}</td>
+        <td>${r.visitDate||'-'}</td>
         <td>${escapeHTML(formatPhone(r.phone))||'-'}</td>
-        <td>${waUrl?`<a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="${waUrl}"><i class="bi bi-whatsapp"></i></a>`:'-'}</td>
+        <td>${wa?`<a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="${wa}"><i class="bi bi-whatsapp"></i></a>`:'-'}</td>
       </tr>`);
   });
 }
 
 function formatPhone(phone) {
-  const cleaned = digits(phone);
-  if (!cleaned) return '';
+  if (!phone) return '';
+  const cleaned = String(phone).replace(/\D/g, '');
   if (cleaned.length === 10) return cleaned.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
   if (cleaned.length === 11) return cleaned.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
-  return cleaned;
+  return String(phone);
 }
 function escapeHTML(s){ 
   return String(s).replace(/[&<>"']/g, c=>({ 
@@ -881,64 +835,70 @@ function escapeHTML(s){
   }[c])); 
 }
 
-/************ AUTO-DAFTAR VAKSIN (FIX .trim) ************/
+/************ AUTO-DAFTAR VAKSIN ************/
 const VAX_PATTERNS = [
   { re:/\b(influenza|flu)\b/i, type:'Influenza', days:365 },
-  { re:/\b(covid|covid[-\s]?19|sars-?cov-?2)\b/i, type:'Covid', days:365 },
-  { re:/\b(tetanus|tetan(i|us))\b/i, type:'Tetanus', days:365 },
+  { re:/\b(covid|covid[-\s]?19)\b/i, type:'Covid', days:365 },
+  { re:/\b(tetanus)\b/i, type:'Tetanus', days:365 },
   { re:/\b(hpv)\b/i, type:'HPV', days:365 },
   { re:/\b(hep[\s-]?b|hepatitis\s*b)\b/i, type:'HepB', days:365 },
-  { re:/\b(vaksin|vaccine|vacc|imunisasi|booster)\b/i, type:'Vaksin', days:365 },
+  { re:/\b(vaksin|vaccine|vacc)\b/i, type:'Vaksin', days:365 },
 ];
 
 function detectVaxType(text){
-  const t=safeStr(text);
-  if (!t) return null;
-  for (const p of VAX_PATTERNS){ if (p.re.test(t)) return { type:p.type, days:p.days }; }
+  if (!text) return null;
+  for (const p of VAX_PATTERNS){
+    if (p.re.test(text)) return { type:p.type, days:p.days };
+  }
   return null;
 }
 
 async function scanVaccinations(rows, manualTriggered){
-  try{
-    if (!rows || !rows.length) { $('#autoVaxMsg').textContent='Tiada data untuk imbas.'; return; }
-    let attempts=0, success=0;
-    for (const r of rows){
-      const blob = [safeStr(r.diagnosisCodes), safeStr(r.diagnosisText)].join(' ');
-      const hit = detectVaxType(blob);
-      if (!hit) continue;
-      const name = safeStr(r.name);
-      const phone= safeStr(r.phone);
-      const last = safeStr(r.visitDate).slice(0,10);
-      if (isBlank(name) || isBlank(phone) || isBlank(last)) continue;
+  if (!rows || !rows.length) { $('#autoVaxMsg').textContent='Tiada data untuk imbas.'; return; }
+  let attempts=0, success=0;
+  for (const r of rows){
+    const blob = [r.diagnosisCodes||'', r.diagnosisText||''].join(' ');
+    const hit = detectVaxType(blob);
+    if (!hit) continue;
+    const name = String(r.name||'').trim();
+    const phone= String(r.phone||'').trim();
+    const last = String(r.visitDate||'').slice(0,10);
+    if (!name || !phone || !last) continue;
 
-      const key = `${digits(phone)}|${hit.type}|${last}`;
-      if (AUTO_VAX_SESSION_KEYS.has(key)) continue;
-      AUTO_VAX_SESSION_KEYS.add(key);
+    const key = `${phone}|${hit.type}|${last}`;
+    if (AUTO_VAX_SESSION_KEYS.has(key)) continue;
+    AUTO_VAX_SESSION_KEYS.add(key);
 
-      attempts++;
-      try{
-        await callAPI('repeat_upsert',{ patient_name:name, phone:phone, last_service:last, type:hit.type, due_every_days:hit.days, note:'auto' });
-        success++;
-      }catch(e){ console.warn('auto vax upsert fail:', e.message); }
+    attempts++;
+    try{
+      await callAPI('repeat_upsert',{
+        patient_name:name,
+        phone:phone,
+        last_service:last,
+        type:hit.type,
+        due_every_days:hit.days,
+        note:'auto'
+      });
+      success++;
+    }catch(e){
+      console.warn('auto vax upsert fail:', e.message);
     }
-    const msg = attempts ? `Auto-vaksin: ${success}/${attempts} didaftar.` : 'Auto-vaksin: Tiada kes vaksin dikesan.';
-    $('#autoVaxMsg').textContent = msg;
-    if (manualTriggered) Toast.show(msg);
-  }catch(err){
-    console.warn('scanVaccinations error:', err.message);
   }
+  const msg = attempts ? `Auto-vaksin: ${success}/${attempts} didaftar.` : 'Auto-vaksin: Tiada kes vaksin dikesan.';
+  $('#autoVaxMsg').textContent = msg;
+  if (manualTriggered) Toast.show(msg);
 }
 
-/************ SYNC / PADAM / SUSUN ************/
+/************ SYNC (ASYNC + PROGRESS) ************/
 async function startSync(){
   const s=$('#startDate').value, e=$('#endDate').value;
-  const gran = $('#gYear').checked?'year':($('#gMonth').checked?'month':'day');
+  const gran=pickGran();
   updateStatus('Memulakan sync…', 10);
   try{
     const { job } = await callAPI('sync_start',{ startISO:s, endISO:e, granularity:gran, dedup:true });
     await pollProgress(job);
     CUR_PAGE=1; 
-    await loadPatients(true); 
+    await loadPatients(true, { refreshGlobal:true }); 
   }catch(err){
     console.error(err); 
     updateStatus('Ralat sync: '+err.message, 0);
@@ -962,21 +922,22 @@ function updateStatus(message, progress) {
   $('#progressFill').style.width = `${progress}%`;
 }
 
+/************ PADAM / SUSUN ************/
 async function deleteRange(){
   if (!confirm('Adakah anda pasti ingin memadam data dalam julat tarikh ini?')) return;
-  const s=$('#startDate').value, e=$('#endDate').value, gran=$('#gYear').checked?'year':($('#gMonth').checked?'month':'day');
+  const s=$('#startDate').value, e=$('#endDate').value, gran=pickGran();
   try{
     updateStatus('Memadam data…', 50);
     await callAPI('delete_range',{ start:s, end:e, granularity:gran });
     updateStatus('Data dipadam', 100);
     CUR_PAGE=1; 
-    await loadPatients(true); 
+    await loadPatients(true, { refreshGlobal:true }); 
   }catch(err){ 
     updateStatus('Padam gagal: ' + err.message, 0);
   }
 }
 async function sortRange(){
-  const s=$('#startDate').value, e=$('#endDate').value, gran=$('#gYear').checked?'year':($('#gMonth').checked?'month':'day');
+  const s=$('#startDate').value, e=$('#endDate').value, gran=pickGran();
   try{
     updateStatus('Menyusun data…', 50);
     await callAPI('sort_range',{ start:s, end:e, granularity:gran, by:'date', order:'asc' });
@@ -988,7 +949,7 @@ async function sortRange(){
   }
 }
 
-/************ CSV EXPORT ************/
+/************ CSV EXPORT (tanpa alamat) ************/
 function exportCSV(){
   const rows=[...document.querySelectorAll('#tbl tbody tr')].map(tr=>{
     const t=tr.querySelectorAll('td');
@@ -1018,8 +979,8 @@ async function loadPricing(){
   }catch(e){ console.warn('pricing_get:', e.message); }
 }
 async function savePrice(){
-  const code = safeStr($('#priceCode').value).toUpperCase();
-  const name = safeStr($('#priceName').value);
+  const code = $('#priceCode').value.trim().toUpperCase();
+  const name = $('#priceName').value.trim();
   const price= Number($('#priceValue').value||0);
   if (!code){ alert('Masukkan kod.'); return; }
   try{
@@ -1032,15 +993,15 @@ async function savePrice(){
 /************ REPEAT REGISTRY ************/
 async function saveRepeat(){
   const payload = {
-    patient_name: safeStr($('#repName').value),
-    phone: safeStr($('#repPhone').value),
+    patient_name: $('#repName').value.trim(),
+    phone: $('#repPhone').value.trim(),
     last_service: $('#repLast').value,
-    type: safeStr($('#repType').value),
+    type: $('#repType').value.trim(),
     due_every_days: Number($('#repEvery').value||365),
     next_due_date: $('#repNext').value,
-    note: safeStr($('#repNote').value)
+    note: $('#repNote').value.trim()
   };
-  if (isBlank(payload.patient_name) || isBlank(payload.phone) || isBlank(payload.last_service)){ alert('Nama, Telefon & Tarikh terakhir diperlukan.'); return; }
+  if (!payload.patient_name || !payload.phone || !payload.last_service){ alert('Nama, Telefon & Tarikh terakhir diperlukan.'); return; }
   try{
     await callAPI('repeat_upsert', payload);
     $('#repName').value=''; $('#repPhone').value=''; $('#repLast').value=''; $('#repType').value='';
@@ -1055,52 +1016,16 @@ async function loadRepeatDue(){
     const rows = r.rows || [];
     if (!rows.length){ tb.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Tiada yang due 14 hari terdekat.</td></tr>`; return; }
     rows.forEach((x,i)=>{
-      const wa=digits(x.phone);
-      const waUrl = wa?`https://wa.me/${wa}`:'';
-      const msg = encodeURIComponent(`Hai ${safeStr(x.name)}, temujanji ${safeStr(x.type)||'servis'} anda bakal due pada ${x.next_due_date}. Mahu tempah slot?`);
+      const wa=x.phone?`https://wa.me/${String(x.phone).replace(/\D/g,'')}`:'';
+      const msg = encodeURIComponent(`Hai ${x.name}, temujanji ${x.type||'servis'} anda bakal due pada ${x.next_due_date}. Mahu tempah slot?`);
       tb.insertAdjacentHTML('beforeend',`
         <tr>
-          <td>${i+1}</td><td>${escapeHTML(safeStr(x.name)||'-')}</td><td>${escapeHTML(formatPhone(x.phone)||'-')}</td>
-          <td>${escapeHTML(safeStr(x.type)||'-')}</td><td>${x.next_due_date}</td>
-          <td>${waUrl?`<a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="${waUrl}?text=${msg}"><i class="bi bi-whatsapp"></i></a>`:'-'}</td>
+          <td>${i+1}</td><td>${escapeHTML(x.name||'-')}</td><td>${escapeHTML(x.phone||'-')}</td>
+          <td>${escapeHTML(x.type||'-')}</td><td>${x.next_due_date}</td>
+          <td>${wa?`<a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="${wa}?text=${msg}"><i class="bi bi-whatsapp"></i></a>`:'-'}</td>
         </tr>`);
     });
   }catch(e){ tb.innerHTML = `<tr><td colspan="6" class="text-danger">Ralat: ${e.message}</td></tr>`; }
-}
-
-/************ CATEGORY SERIES ************/
-async function refreshCategorySeries(){
-  if (!CURRENT_CAT_CODE){ clearCategorySeries(); return; }
-  try{
-    const s=$('#startDate').value, e=$('#endDate').value;
-    const r = await callAPI('category_series', { code: CURRENT_CAT_CODE, startISO:s, endISO:e, gran: CURRENT_CAT_GRAN });
-    drawCategorySeries(r);
-  }catch(e){
-    console.warn('category_series error:', e.message);
-  }
-}
-function drawCategorySeries(resp){
-  const ctx=$('#chartCatSeries');
-  if (catChart) catChart.destroy();
-  const labels = resp.labels || [];
-  const data   = resp.data || [];
-  const title  = `${resp.name || resp.code || ''} • ${resp.gran==='month'?'Bulanan':'Harian'} • Jumlah: ${resp.total||0}`;
-  $('#catSeriesBadge').classList.remove('d-none');
-  $('#catSeriesBadge').textContent = title;
-  $('#catSeriesHint').textContent = `${resp.start} → ${resp.end}`;
-
-  catChart = new Chart(ctx, {
-    type: 'line',
-    data: { labels, datasets: [{ label: resp.name || resp.code, data, fill:false, tension:0.25, borderWidth:2 }] },
-    options: { animation:false, plugins:{ legend:{ display:false }}, scales:{ y:{ beginAtZero:true, grid:{color:'rgba(0,0,0,.05)'}}, x:{ grid:{ display:false } } }, maintainAspectRatio:false }
-  });
-}
-function clearCategorySeries(){
-  CURRENT_CAT_CODE='';
-  $('#catSeriesBadge').classList.add('d-none');
-  $('#catSeriesBadge').textContent='';
-  $('#catSeriesHint').textContent='Klik kategori pada Donut/Bar/Chip untuk melihat trend siri masa mengikut kategori.';
-  if (catChart){ catChart.destroy(); catChart=null; }
 }
 </script>
 
