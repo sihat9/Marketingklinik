@@ -264,7 +264,7 @@
           </div>
         </div>
 
-        <!-- Jadual Pesakit (tanpa alamat; diagnosis = kod sahaja) -->
+        <!-- Jadual Pesakit -->
         <div class="card p-3">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <h6 class="mb-0">Senarai Pesakit (Ditapis)</h6>
@@ -431,6 +431,11 @@ const hide = el => el.classList.add('hidden');
 const fmtPeriod = (s,e)=>`${s} → ${e}`;
 const Toast = { show(msg){ $('#toastBody').textContent=msg; const t=bootstrap.Toast.getOrCreateInstance($('#toast')); t.show(); } };
 
+/************ String helpers (FIX utama) ************/
+const safeStr = (v)=> (v==null ? '' : String(v)).trim();
+const digits  = (v)=> safeStr(v).replace(/\D/g,'');  // untuk WhatsApp/link
+const isBlank = (v)=> safeStr(v)==='';
+
 /************ AUTH + INIT ************/
 window.onload = () => {
   // default: bulan semasa
@@ -549,7 +554,7 @@ async function loadSummary(){
 function buildLocalSummary(rows){
   const counts={}; let labeled=0;
   rows.forEach(r=>{
-    const codes=(r.diagnosisCodes||'').toString().toUpperCase().split(/[,\s]+/).filter(Boolean);
+    const codes=safeStr(r.diagnosisCodes).toUpperCase().split(/[,\s]+/).filter(Boolean);
     if (codes.length){ labeled++; codes.forEach(c=>counts[c]=(counts[c]||0)+1); }
   });
   const list=Object.entries(counts).map(([code,count])=>{
@@ -570,7 +575,7 @@ function drawDonut(list){
   donutChart=new Chart(ctx,{
     type:'doughnut',
     data:{ labels, datasets:[{ data:values, backgroundColor:genColors(list.length), borderWidth:1, borderColor:'#fff' }]},
-    options:{ plugins:{ legend:{ position:'bottom', labels:{ boxWidth:12, padding:14, font:{size:11} } } }, cutout:'65%', maintainAspectRatio:false,
+    options:{ animation:false, plugins:{ legend:{ position:'bottom', labels:{ boxWidth:12, padding:14, font:{size:11} } } }, cutout:'65%', maintainAspectRatio:false,
       onClick: (_evt, el)=> {
         if (!el?.length) return;
         const idx = el[0].index;
@@ -589,7 +594,7 @@ function drawBar(list){
   barChart=new Chart(ctx,{
     type:'bar',
     data:{ labels, datasets:[{ data:values, backgroundColor:genColors(list.length), borderWidth:0, borderRadius:4 }]},
-    options:{ plugins:{ legend:{display:false}},
+    options:{ animation:false, plugins:{ legend:{display:false}},
       scales:{ y:{beginAtZero:true, grid:{color:'rgba(0,0,0,.05)'}}, x:{grid:{display:false}} }, maintainAspectRatio:false,
       onClick: (_evt, el)=>{
         if (!el?.length) return;
@@ -613,14 +618,12 @@ function renderQuickCats(list){
     box.innerHTML = `<span class="subtle">Tiada kategori ditemui.</span>`;
     return;
   }
-  // “Semua”
   const all = document.createElement('button');
   all.className = 'cat-chip';
   all.textContent = 'Semua';
   all.addEventListener('click', ()=>applyCategoryFilter(''));
   box.appendChild(all);
 
-  // Top 12
   list.slice(0,12).forEach(item=>{
     const btn=document.createElement('button');
     btn.className='cat-chip';
@@ -637,7 +640,7 @@ function renderQuickCats(list){
   highlightActiveChip();
 }
 function applyCategoryFilter(code, withSeries=false){
-  $('#filterDiag').value = (code||'').toUpperCase();
+  $('#filterDiag').value = safeStr(code).toUpperCase();
   CUR_PAGE=1;
   loadPatients(false);
   highlightActiveChip();
@@ -646,22 +649,22 @@ function applyCategoryFilter(code, withSeries=false){
   Toast.show(code ? `Ditapis ikut kategori: ${name}` : 'Penapis kategori dibuang');
 
   if (withSeries && code){
-    CURRENT_CAT_CODE = code.toUpperCase();
+    CURRENT_CAT_CODE = safeStr(code).toUpperCase();
     refreshCategorySeries();
   } else if (!code){
     clearCategorySeries();
   }
 }
 function highlightActiveChip(){
-  const code = ($('#filterDiag').value||'').trim().toUpperCase();
+  const code = safeStr($('#filterDiag').value).toUpperCase();
   document.querySelectorAll('#quickCats .cat-chip').forEach(btn=>{
-    const c = (btn.getAttribute('data-code')||'').toUpperCase();
+    const c = safeStr(btn.getAttribute('data-code')).toUpperCase();
     btn.classList.toggle('active', code && c===code);
     if (!code && btn.textContent.trim()==='Semua') btn.classList.add('active');
   });
 }
 
-/************ ATTENDANCE (Graf Kehadiran) ************/
+/************ ATTENDANCE ************/
 function dateKey(d){ return d.toISOString().slice(0,10); }
 function addDays(d, n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
 
@@ -715,15 +718,15 @@ function drawAttendance(daysOrYear){
   attnChart = new Chart(ctx, {
     type: 'line',
     data: { labels: series.labels, datasets: [{ label: 'Kehadiran', data: series.data, fill: false, tension: 0.25, borderWidth: 2 }] },
-    options: { plugins: { legend:{ display:false } }, scales: { y:{ beginAtZero:true, grid:{ color:'rgba(0,0,0,.05)'}}, x:{ grid:{ display:false } } }, maintainAspectRatio:false }
+    options: { animation:false, plugins: { legend:{ display:false } }, scales: { y:{ beginAtZero:true, grid:{ color:'rgba(0,0,0,.05)'}}, x:{ grid:{ display:false } } }, maintainAspectRatio:false }
   });
 }
 
 /************ TREND ALERTS & REACTIVATION ************/
 async function loadTrends(){
   try{
-    const diag=($('#filterDiag').value||'').trim();
-    const area=($('#filterArea').value||'').trim();
+    const diag=safeStr($('#filterDiag').value);
+    const area=safeStr($('#filterArea').value);
     const r = await callAPI('trend_alerts',{ diagnosisCode:diag, areaQuery:area });
     const arr = r.alerts || [];
     if (!arr.length){ $('#trendBox').innerHTML = 'Tiada alert signifikan buat masa ini.'; return; }
@@ -738,19 +741,20 @@ async function loadTrends(){
 async function loadReactivation(){
   const tb = $('#tblReAct tbody'); if(!tb) return; tb.innerHTML='';
   try{
-    const diag=($('#filterDiag').value||'').trim();
-    const area=($('#filterArea').value||'').trim();
+    const diag=safeStr($('#filterDiag').value);
+    const area=safeStr($('#filterArea').value);
     const r = await callAPI('reactivation_list',{ days:30, diagnosisCode:diag, areaQuery:area });
     const rows = r.rows || [];
     if (!rows.length){ tb.innerHTML = `<tr><td colspan="7" class="text-center text-muted">Tiada rekod.</td></tr>`; return; }
     rows.forEach((x,i)=>{
-      const wa = x.phone?`https://wa.me/${String(x.phone).replace(/\D/g,'')}`:'';
-      const msg = encodeURIComponent(`Hai ${x.name}, ini klinik anda. Bagaimana keadaan selepas lawatan terakhir (${x.lastVisit})? Jika perlu bantuan/temujanji, balas mesej ini ya.`);
+      const wa = digits(x.phone);
+      const waUrl = wa?`https://wa.me/${wa}`:'';
+      const msg = encodeURIComponent(`Hai ${safeStr(x.name)}, ini klinik anda. Bagaimana keadaan selepas lawatan terakhir (${x.lastVisit})? Jika perlu bantuan/temujanji, balas mesej ini ya.`);
       tb.insertAdjacentHTML('beforeend',`
         <tr>
-          <td>${i+1}</td><td>${escapeHTML(x.name||'-')}</td><td>${escapeHTML(x.phone||'-')}</td>
-          <td>${escapeHTML(x.lastCategory||'-')}</td><td>${x.lastVisit}</td><td>${x.daysSilent}</td>
-          <td>${wa?`<a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="${wa}?text=${msg}"><i class="bi bi-whatsapp"></i></a>`:'-'}</td>
+          <td>${i+1}</td><td>${escapeHTML(safeStr(x.name)||'-')}</td><td>${escapeHTML(formatPhone(x.phone)||'-')}</td>
+          <td>${escapeHTML(safeStr(x.lastCategory)||'-')}</td><td>${x.lastVisit}</td><td>${x.daysSilent}</td>
+          <td>${waUrl?`<a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="${waUrl}?text=${msg}"><i class="bi bi-whatsapp"></i></a>`:'-'}</td>
         </tr>`);
     });
   }catch(e){
@@ -761,16 +765,13 @@ async function loadReactivation(){
 /************ PATIENTS ************/
 async function loadPatients(refreshSummary=true){
   const s=$('#startDate').value, e=$('#endDate').value;
-  const diag=($('#filterDiag').value||'').trim();
-  const area=($('#filterArea').value||'').trim();
+  const diag=safeStr($('#filterDiag').value);
+  const area=safeStr($('#filterArea').value);
   const pageSize=Number($('#pageSize').value||100);
   updateStatus('Memuat senarai pesakit…', 50);
 
   try{
-    const res=await callAPI('patients',{
-      startISO:s, endISO:e, page:CUR_PAGE, pageSize,
-      diagnosisCode:diag, areaQuery:area
-    });
+    const res=await callAPI('patients',{ startISO:s, endISO:e, page:CUR_PAGE, pageSize, diagnosisCode:diag, areaQuery:area });
 
     LAST_PATIENT_ROWS = res.rows||[];
     renderPatients(LAST_PATIENT_ROWS);
@@ -789,7 +790,6 @@ async function loadPatients(refreshSummary=true){
 
     let data = await loadSummary();
 
-    // bina map code->name jika tersedia
     CODE_NAME_MAP = {};
     if (data.rows && data.rows.length){
       data.rows.forEach(r=>{
@@ -825,16 +825,13 @@ async function loadPatients(refreshSummary=true){
 
     // Auto daftar vaksin (jika toggle on)
     if ($('#autoVaxSwitch')?.checked) {
-      scanVaccinations(LAST_PATIENT_ROWS,false);
+      await scanVaccinations(LAST_PATIENT_ROWS,false);
     }
 
-    // kemas kini mesej penapis
-    const codeNow = ($('#filterDiag').value||'').trim().toUpperCase();
+    const codeNow = safeStr($('#filterDiag').value).toUpperCase();
     $('#activeFilterMsg').textContent = `Penapis: ${codeNow? (CODE_NAME_MAP[codeNow]||codeNow) : 'Semua kategori'}`;
 
-    // Refresh trend alerts & reactivation mengikut penapis
     await Promise.all([loadTrends(), loadReactivation()]);
-
     updateStatus('Data dimuat', 100);
   }catch(err){
     console.error(err);
@@ -849,8 +846,9 @@ function renderPatients(rows){
     return;
   }
   rows.forEach((r,i)=>{
-    const wa=r.phone?`https://wa.me/${String(r.phone).replace(/\D/g,'')}`:'';
-    const codes = String(r.diagnosisCodes||'').toUpperCase().split(/[,\s]+/).filter(Boolean);
+    const wa = digits(r.phone);
+    const waUrl = wa?`https://wa.me/${wa}`:'';
+    const codes = safeStr(r.diagnosisCodes).toUpperCase().split(/[,\s]+/).filter(Boolean);
     const chips = codes.length
       ? codes.map(c=>{
           const tip = CODE_NAME_MAP[c] && CODE_NAME_MAP[c]!==c ? ` title="${c} • ${CODE_NAME_MAP[c]}"` : ` title="${c}"`;
@@ -860,22 +858,22 @@ function renderPatients(rows){
     tb.insertAdjacentHTML('beforeend',`
       <tr>
         <td class="fw-semibold">${i+1 + (CUR_PAGE-1)*Number($('#pageSize').value||100)}</td>
-        <td>${escapeHTML(r.name||'-')}</td>
-        <td>${r.age||'-'}</td>
+        <td>${escapeHTML(safeStr(r.name)||'-')}</td>
+        <td>${safeStr(r.age)||'-'}</td>
         <td>${chips}</td>
-        <td>${r.visitDate||'-'}</td>
+        <td>${safeStr(r.visitDate)||'-'}</td>
         <td>${escapeHTML(formatPhone(r.phone))||'-'}</td>
-        <td>${wa?`<a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="${wa}"><i class="bi bi-whatsapp"></i></a>`:'-'}</td>
+        <td>${waUrl?`<a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="${waUrl}"><i class="bi bi-whatsapp"></i></a>`:'-'}</td>
       </tr>`);
   });
 }
 
 function formatPhone(phone) {
-  if (!phone) return '';
-  const cleaned = String(phone).replace(/\D/g, '');
+  const cleaned = digits(phone);
+  if (!cleaned) return '';
   if (cleaned.length === 10) return cleaned.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
   if (cleaned.length === 11) return cleaned.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
-  return phone;
+  return cleaned;
 }
 function escapeHTML(s){ 
   return String(s).replace(/[&<>"']/g, c=>({ 
@@ -883,61 +881,55 @@ function escapeHTML(s){
   }[c])); 
 }
 
-/************ AUTO-DAFTAR VAKSIN ************/
+/************ AUTO-DAFTAR VAKSIN (FIX .trim) ************/
 const VAX_PATTERNS = [
   { re:/\b(influenza|flu)\b/i, type:'Influenza', days:365 },
-  { re:/\b(covid|covid[-\s]?19)\b/i, type:'Covid', days:365 },
-  { re:/\b(tetanus)\b/i, type:'Tetanus', days:365 },
+  { re:/\b(covid|covid[-\s]?19|sars-?cov-?2)\b/i, type:'Covid', days:365 },
+  { re:/\b(tetanus|tetan(i|us))\b/i, type:'Tetanus', days:365 },
   { re:/\b(hpv)\b/i, type:'HPV', days:365 },
   { re:/\b(hep[\s-]?b|hepatitis\s*b)\b/i, type:'HepB', days:365 },
-  { re:/\b(vaksin|vaccine|vacc)\b/i, type:'Vaksin', days:365 },
+  { re:/\b(vaksin|vaccine|vacc|imunisasi|booster)\b/i, type:'Vaksin', days:365 },
 ];
 
 function detectVaxType(text){
-  if (!text) return null;
-  for (const p of VAX_PATTERNS){
-    if (p.re.test(text)) return { type:p.type, days:p.days };
-  }
+  const t=safeStr(text);
+  if (!t) return null;
+  for (const p of VAX_PATTERNS){ if (p.re.test(t)) return { type:p.type, days:p.days }; }
   return null;
 }
 
 async function scanVaccinations(rows, manualTriggered){
-  if (!rows || !rows.length) { $('#autoVaxMsg').textContent='Tiada data untuk imbas.'; return; }
-  let attempts=0, success=0;
-  for (const r of rows){
-    const blob = [r.diagnosisCodes||'', r.diagnosisText||''].join(' ');
-    const hit = detectVaxType(blob);
-    if (!hit) continue;
-    const name = (r.name||'').trim();
-    const phone= (r.phone||'').trim();
-    const last = (r.visitDate||'').slice(0,10);
-    if (!name || !phone || !last) continue;
+  try{
+    if (!rows || !rows.length) { $('#autoVaxMsg').textContent='Tiada data untuk imbas.'; return; }
+    let attempts=0, success=0;
+    for (const r of rows){
+      const blob = [safeStr(r.diagnosisCodes), safeStr(r.diagnosisText)].join(' ');
+      const hit = detectVaxType(blob);
+      if (!hit) continue;
+      const name = safeStr(r.name);
+      const phone= safeStr(r.phone);
+      const last = safeStr(r.visitDate).slice(0,10);
+      if (isBlank(name) || isBlank(phone) || isBlank(last)) continue;
 
-    const key = `${phone}|${hit.type}|${last}`;
-    if (AUTO_VAX_SESSION_KEYS.has(key)) continue;
-    AUTO_VAX_SESSION_KEYS.add(key);
+      const key = `${digits(phone)}|${hit.type}|${last}`;
+      if (AUTO_VAX_SESSION_KEYS.has(key)) continue;
+      AUTO_VAX_SESSION_KEYS.add(key);
 
-    attempts++;
-    try{
-      await callAPI('repeat_upsert',{
-        patient_name:name,
-        phone:phone,
-        last_service:last,
-        type:hit.type,
-        due_every_days:hit.days,
-        note:'auto'
-      });
-      success++;
-    }catch(e){
-      console.warn('auto vax upsert fail:', e.message);
+      attempts++;
+      try{
+        await callAPI('repeat_upsert',{ patient_name:name, phone:phone, last_service:last, type:hit.type, due_every_days:hit.days, note:'auto' });
+        success++;
+      }catch(e){ console.warn('auto vax upsert fail:', e.message); }
     }
+    const msg = attempts ? `Auto-vaksin: ${success}/${attempts} didaftar.` : 'Auto-vaksin: Tiada kes vaksin dikesan.';
+    $('#autoVaxMsg').textContent = msg;
+    if (manualTriggered) Toast.show(msg);
+  }catch(err){
+    console.warn('scanVaccinations error:', err.message);
   }
-  const msg = attempts ? `Auto-vaksin: ${success}/${attempts} didaftar.` : 'Auto-vaksin: Tiada kes vaksin dikesan.';
-  $('#autoVaxMsg').textContent = msg;
-  if (manualTriggered) Toast.show(msg);
 }
 
-/************ SYNC (ASYNC + PROGRESS) ************/
+/************ SYNC / PADAM / SUSUN ************/
 async function startSync(){
   const s=$('#startDate').value, e=$('#endDate').value;
   const gran = $('#gYear').checked?'year':($('#gMonth').checked?'month':'day');
@@ -970,7 +962,6 @@ function updateStatus(message, progress) {
   $('#progressFill').style.width = `${progress}%`;
 }
 
-/************ PADAM / SUSUN ************/
 async function deleteRange(){
   if (!confirm('Adakah anda pasti ingin memadam data dalam julat tarikh ini?')) return;
   const s=$('#startDate').value, e=$('#endDate').value, gran=$('#gYear').checked?'year':($('#gMonth').checked?'month':'day');
@@ -997,7 +988,7 @@ async function sortRange(){
   }
 }
 
-/************ CSV EXPORT (tanpa alamat) ************/
+/************ CSV EXPORT ************/
 function exportCSV(){
   const rows=[...document.querySelectorAll('#tbl tbody tr')].map(tr=>{
     const t=tr.querySelectorAll('td');
@@ -1027,8 +1018,8 @@ async function loadPricing(){
   }catch(e){ console.warn('pricing_get:', e.message); }
 }
 async function savePrice(){
-  const code = $('#priceCode').value.trim().toUpperCase();
-  const name = $('#priceName').value.trim();
+  const code = safeStr($('#priceCode').value).toUpperCase();
+  const name = safeStr($('#priceName').value);
   const price= Number($('#priceValue').value||0);
   if (!code){ alert('Masukkan kod.'); return; }
   try{
@@ -1041,15 +1032,15 @@ async function savePrice(){
 /************ REPEAT REGISTRY ************/
 async function saveRepeat(){
   const payload = {
-    patient_name: $('#repName').value.trim(),
-    phone: $('#repPhone').value.trim(),
+    patient_name: safeStr($('#repName').value),
+    phone: safeStr($('#repPhone').value),
     last_service: $('#repLast').value,
-    type: $('#repType').value.trim(),
+    type: safeStr($('#repType').value),
     due_every_days: Number($('#repEvery').value||365),
     next_due_date: $('#repNext').value,
-    note: $('#repNote').value.trim()
+    note: safeStr($('#repNote').value)
   };
-  if (!payload.patient_name || !payload.phone || !payload.last_service){ alert('Nama, Telefon & Tarikh terakhir diperlukan.'); return; }
+  if (isBlank(payload.patient_name) || isBlank(payload.phone) || isBlank(payload.last_service)){ alert('Nama, Telefon & Tarikh terakhir diperlukan.'); return; }
   try{
     await callAPI('repeat_upsert', payload);
     $('#repName').value=''; $('#repPhone').value=''; $('#repLast').value=''; $('#repType').value='';
@@ -1064,19 +1055,20 @@ async function loadRepeatDue(){
     const rows = r.rows || [];
     if (!rows.length){ tb.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Tiada yang due 14 hari terdekat.</td></tr>`; return; }
     rows.forEach((x,i)=>{
-      const wa=x.phone?`https://wa.me/${String(x.phone).replace(/\D/g,'')}`:'';
-      const msg = encodeURIComponent(`Hai ${x.name}, temujanji ${x.type||'servis'} anda bakal due pada ${x.next_due_date}. Mahu tempah slot?`);
+      const wa=digits(x.phone);
+      const waUrl = wa?`https://wa.me/${wa}`:'';
+      const msg = encodeURIComponent(`Hai ${safeStr(x.name)}, temujanji ${safeStr(x.type)||'servis'} anda bakal due pada ${x.next_due_date}. Mahu tempah slot?`);
       tb.insertAdjacentHTML('beforeend',`
         <tr>
-          <td>${i+1}</td><td>${escapeHTML(x.name||'-')}</td><td>${escapeHTML(x.phone||'-')}</td>
-          <td>${escapeHTML(x.type||'-')}</td><td>${x.next_due_date}</td>
-          <td>${wa?`<a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="${wa}?text=${msg}"><i class="bi bi-whatsapp"></i></a>`:'-'}</td>
+          <td>${i+1}</td><td>${escapeHTML(safeStr(x.name)||'-')}</td><td>${escapeHTML(formatPhone(x.phone)||'-')}</td>
+          <td>${escapeHTML(safeStr(x.type)||'-')}</td><td>${x.next_due_date}</td>
+          <td>${waUrl?`<a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="${waUrl}?text=${msg}"><i class="bi bi-whatsapp"></i></a>`:'-'}</td>
         </tr>`);
     });
   }catch(e){ tb.innerHTML = `<tr><td colspan="6" class="text-danger">Ralat: ${e.message}</td></tr>`; }
 }
 
-/************ CATEGORY SERIES (Baru) ************/
+/************ CATEGORY SERIES ************/
 async function refreshCategorySeries(){
   if (!CURRENT_CAT_CODE){ clearCategorySeries(); return; }
   try{
@@ -1100,7 +1092,7 @@ function drawCategorySeries(resp){
   catChart = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets: [{ label: resp.name || resp.code, data, fill:false, tension:0.25, borderWidth:2 }] },
-    options: { plugins:{ legend:{ display:false }}, scales:{ y:{ beginAtZero:true, grid:{color:'rgba(0,0,0,.05)'}}, x:{ grid:{ display:false } } }, maintainAspectRatio:false }
+    options: { animation:false, plugins:{ legend:{ display:false }}, scales:{ y:{ beginAtZero:true, grid:{color:'rgba(0,0,0,.05)'}}, x:{ grid:{ display:false } } }, maintainAspectRatio:false }
   });
 }
 function clearCategorySeries(){
