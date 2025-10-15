@@ -87,9 +87,17 @@
     .stats-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:15px}
     @media (max-width: 768px){.stats-grid{grid-template-columns:repeat(2, 1fr)}}
     @media (max-width: 576px){.stats-grid{grid-template-columns:1fr}}
+    .sync-status{position:fixed;top:0;left:0;width:100%;z-index:9999;background:var(--primary);color:white;padding:8px;text-align:center;transform:translateY(-100%);transition:transform 0.3s ease}
+    .sync-status.show{transform:translateY(0)}
   </style>
 </head>
 <body>
+<!-- Sync Status Bar -->
+<div id="syncStatusBar" class="sync-status">
+  <i class="bi bi-arrow-repeat me-2"></i>
+  <span id="syncStatusText">Menyegerakkan data...</span>
+</div>
+
 <div class="container py-4">
 
   <!-- Header -->
@@ -438,6 +446,7 @@ let CODE_NAME_MAP = {}; // code -> friendly name
 const CHART_ANIM = false;
 let isLoading = false;
 let loadingTimeout;
+let isSyncing = false;
 
 /************ DOM helpers ************/
 const $ = (q)=>document.querySelector(q);
@@ -465,6 +474,19 @@ const setLoading = (loading) => {
   } else {
     clearTimeout(loadingTimeout);
     document.querySelectorAll('.skeleton-container').forEach(el => el.remove());
+  }
+};
+
+// Sync status bar
+const showSyncStatus = (message, show = true) => {
+  const statusBar = $('#syncStatusBar');
+  const statusText = $('#syncStatusText');
+  
+  statusText.textContent = message;
+  if (show) {
+    statusBar.classList.add('show');
+  } else {
+    statusBar.classList.remove('show');
   }
 };
 
@@ -790,6 +812,13 @@ async function loadPatients(refreshSummary=true, opts={}){
   updateStatus('Memuat senarai pesakit…', 50);
 
   try{
+    // Force cache refresh if explicitly requested
+    if (refreshSummary) {
+      const cacheKey = `PATIENTS:${s}|${e}|${diag}|${area}|${CUR_PAGE}|${pageSize}`;
+      // Note: We can't directly clear cache from frontend, but we can add a timestamp to force refresh
+      await callAPI('clear_cache', { patterns: [`PATIENTS:${s}|${e}`] });
+    }
+    
     const res=await callAPI('patients',{ startISO:s, endISO:e, page:CUR_PAGE, pageSize, diagnosisCode:diag, areaQuery:area });
     LAST_PATIENT_ROWS = res.rows||[];
     renderPatients(LAST_PATIENT_ROWS);
@@ -841,6 +870,7 @@ async function loadPatients(refreshSummary=true, opts={}){
   }catch(err){
     console.error(err);
     updateStatus('Ralat memuat pesakit: '+err.message, 0);
+    Toast.show('Ralat memuat pesakit: ' + err.message);
   } finally {
     setLoading(false);
   }
@@ -911,13 +941,42 @@ async function scanVaccinations(rows, manualTriggered){
 
 /************ SYNC / PADAM / SUSUN ************/
 async function startSync(){
+  if (isSyncing) {
+    Toast.show('Sync sedang berjalan. Sila tunggu.');
+    return;
+  }
+  
+  isSyncing = true;
   const s=$('#startDate').value, e=$('#endDate').value; const gran=pickGran();
+  
+  // Show sync status bar
+  showSyncStatus('Memulakan sync data...');
   updateStatus('Memulakan sync…', 10);
+  
   try{
-    const { job } = await callAPI('sync_start',{ startISO:s, endISO:e, granularity:gran, dedup:true });
+    const { job, synced, total } = await callAPI('sync_start',{ startISO:s, endISO:e, granularity:gran, dedup:true });
+    
+    // Show immediate feedback
+    showSyncStatus(`Sync dimulakan: ${synced}/${total} rekod baharu`);
+    updateStatus(`Sync dimulakan: ${synced}/${total} rekod baharu`, 30);
+    
     await pollProgress(job);
-    CUR_PAGE=1; await loadPatients(true, { refreshGlobal:true });
-  }catch(err){ console.error(err); updateStatus('Ralat sync: '+err.message, 0); }
+    
+    // Force refresh all data after sync
+    CUR_PAGE=1; 
+    await loadPatients(true, { refreshGlobal:true });
+    
+    // Show success message
+    showSyncStatus(`Sync selesai: ${synced}/${total} rekod baharu`, false);
+    Toast.show(`Sync selesai: ${synced}/${total} rekod baharu`);
+  }catch(err){ 
+    console.error(err); 
+    showSyncStatus(`Ralat sync: ${err.message}`, false);
+    updateStatus('Ralat sync: '+err.message, 0); 
+    Toast.show('Ralat sync: ' + err.message);
+  } finally {
+    isSyncing = false;
+  }
 }
 async function pollProgress(job){
   return new Promise((resolve,reject)=>{
@@ -927,8 +986,19 @@ async function pollProgress(job){
         let progress = 10;
         if (p.total && p.doneCount) progress = 10 + Math.floor((p.doneCount / p.total) * 80);
         updateStatus(`Menyelaraskan data… ${p.doneCount||0}/${p.total||0}`, progress);
-        if (p.done){ clearInterval(timer); updateStatus('Sync selesai', 100); setTimeout(resolve, 300); }
-      }catch(e){ clearInterval(timer); updateStatus('Ralat sync: ' + e.message, 0); reject(e); }
+        showSyncStatus(`Menyelaraskan data… ${p.doneCount||0}/${p.total||0}`);
+        if (p.done){ 
+          clearInterval(timer); 
+          updateStatus('Sync selesai, memuat semula data...', 90);
+          showSyncStatus('Sync selesai, memuat semula data...');
+          setTimeout(resolve, 300); 
+        }
+      }catch(e){ 
+        clearInterval(timer); 
+        showSyncStatus(`Ralat sync: ${e.message}`, false);
+        updateStatus('Ralat sync: ' + e.message, 0); 
+        reject(e); 
+      }
     }, 1500);
   });
 }
