@@ -999,18 +999,7 @@ async function onSignIn(resp){
 async function callAPI(action, payload){
   if (!ID_TOKEN) throw new Error('Belum log masuk');
   
-  // Check if this is a new feature that might not be implemented yet
-  const newFeatures = [
-    'predictive_analytics', 'patient_journey', 'patient_segmentation', 
-    'campaign_list', 'geospatial_analysis', 'campaign_create'
-  ];
-  
-  if (newFeatures.includes(action)) {
-    console.warn(`API endpoint ${action} may not be implemented in the backend yet`);
-    // Return a mock response to prevent errors
-    return getMockResponse(action, payload);
-  }
-  
+  // --- KEMASKINI: Logik mock data telah dibuang. Semua panggilan akan ke backend. ---
   const res = await fetch(BACKEND_URL,{
     method:'POST', mode:'cors', credentials:'omit',
     headers:{ 'Content-Type':'text/plain' },
@@ -1018,232 +1007,6 @@ async function callAPI(action, payload){
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
-}
-
-// Mock response function for new features
-function getMockResponse(action, payload) {
-  switch(action) {
-    case 'predictive_analytics':
-      return getMockPredictiveAnalytics(payload);
-    case 'patient_journey':
-      return getMockPatientJourney(payload);
-    case 'patient_segmentation':
-      return getMockPatientSegmentation();
-    case 'campaign_list':
-      return getMockCampaignList();
-    case 'geospatial_analysis':
-      return getMockGeospatialAnalysis(payload.type);
-    case 'campaign_create':
-      return { success: true, message: 'Kempen berjaya dicipta (mock)' };
-    default:
-      return { error: 'Unknown action' };
-  }
-}
-
-// Mock data functions for new features
-function getMockPredictiveAnalytics(payload) {
-  const type = payload.type || 'disease_trends';
-  
-  if (type === 'disease_trends') {
-    return {
-      labels: ['Jan', 'Feb', 'Mac', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-      actual: [45, 52, 48, 65, 72, 68, 75, 82, 78, 85, 92, 88],
-      predicted: [50, 55, 60, 70, 75, 80, 85, 90, 95, 100, 105, 110],
-      insight: 'Ramalan menunjukkan peningkatan Influenza pada musim hujan'
-    };
-  } else if (type === 'plv') {
-    const period = payload.period || '365';
-    return {
-      segments: ['Baru', 'Sederhana', 'Tinggi', 'Premium'],
-      values: [850, 1200, 2100, 3500],
-      average: 1912.5
-    };
-  } else if (type === 'conversion') {
-    return {
-      labels: ['Prospek', 'Temujan Pertama', 'Lawatan Kedua', 'Lawatan Berulang'],
-      values: [500, 350, 280, 220],
-      rate: 35
-    };
-  } else if (type === 'churn_risk') {
-    return {
-      patients: [
-        { name: 'Ahmad bin Ismail', phone: '01234567890', risk: 'high' },
-        { name: 'Siti Aminah', phone: '01234567891', risk: 'medium' },
-        { name: 'Mohamed bin Hassan', phone: '01234567892', risk: 'low' }
-      ]
-    };
-  }
-  
-  return {};
-}
-
-function getMockPatientJourney(payload) {
-  if (payload.patient_id) {
-    return {
-      steps: [
-        {
-          title: 'Pertama kali mendengar',
-          date: '2023-01-15',
-          description: 'Pesakit mula-mula mendengar klinik melalui rujukan',
-          completed: true,
-          duration: '2 hari'
-        },
-        {
-          title: 'Temujanji pertama',
-          date: '2023-01-17',
-          description: 'Pesakit hadir untuk temujanji pertama',
-          completed: true,
-          duration: '1 jam'
-        },
-        {
-          title: 'Rawatan pertama',
-          date: '2023-01-17',
-          description: 'Pesakit menerima rawatan pertama',
-          completed: true,
-          duration: '30 minit'
-        },
-        {
-          title: 'Follow-up',
-          date: '2023-01-24',
-          description: 'Follow-up selepas rawatan pertama',
-          completed: true,
-          duration: '15 minit'
-        }
-      ]
-    };
-  }
-  
-  return {};
-}
-
-function getMockPatientSegmentation() {
-  return {
-    segments: [
-      {
-        id: 'seg1',
-        name: 'Pesakit Baru',
-        description: 'Pesakit yang baru mendaftar dalam 3 bulan terakhir',
-        size: 125,
-        risk: 'high',
-        value: 500,
-        potential: 85,
-        demographics: '18-35 tahun, bandaraya A-B',
-        needs: 'Pendidikan kesihatan, promosi kesihatan',
-        avatar: 'person-plus',
-        persona_name: 'Pencari Kesihatan',
-        persona_description: 'Individuuda muda yang proaktif mencari maklumat kesihatan'
-      },
-      {
-        id: 'seg2',
-        name: 'Pesakit Kronik',
-        description: 'Pesakit dengan penyakit kronik yang memerlukan rawatan berterusan',
-        size: 85,
-        risk: 'medium',
-        value: 2100,
-        potential: 70,
-        demographics: '35-65 tahun, pelbagai latar belakangan',
-        needs: 'Pengurusan penyakit kronik, sokongan emosi',
-        avatar: 'heart-pulse',
-        persona_name: 'Pengurus Kesihatan',
-        persona_description: 'Individuua yang mengutamakan kesihatan jangka panjang'
-      },
-      {
-        id: 'seg3',
-        name: 'Pesakit Keluarga',
-        description: 'Pesakit yang datang bersama keluarga',
-        size: 65,
-        risk: 'low',
-        value: 1500,
-        potential: 60,
-        demographics: 'Pelbagai peringkat, keluarga',
-        needs: 'Perkhidmatan keluarga, kemudahan akses',
-        avatar: 'people',
-        persona_name: 'Penjaga Keluarga',
-        persona_description: 'Individuua yang mengutamakan kesihatan keluarga'
-      },
-      {
-        id: 'seg4',
-        name: 'Pesakit Warga Emas',
-        description: 'Pesakit dari kalangan warga emas',
-        size: 45,
-        risk: 'low',
-        value: 800,
-        potential: 50,
-        demographics: '25-45 tahun, kalangan warga emas',
-        needs: 'Kemudahan akses, perkhidmatan kanak-kanak',
-        avatar: 'mother',
-        persona_name: 'Ibu Prihatin',
-        persona_description: 'Ibu yang mengutamakan kesihatan keluarga'
-      }
-    ]
-  };
-}
-
-function getMockCampaignList() {
-  return {
-    campaigns: [
-      {
-        id: 'camp1',
-        name: 'Promosi Influenza',
-        type: 'whatsapp',
-        segment: 'Pesakit Baru',
-        description: 'Promosi vaksin influenza untuk musim hujan',
-        status: 'active',
-        sent: 250,
-        opened: 180,
-        progress: 72,
-        roi: 15.5
-      },
-      {
-        id: 'camp2',
-        name: 'Kempen Kesihatan Wanita',
-        type: 'email',
-        segment: 'Pesakit Warga Emas',
-        description: 'Pakej pemeriksaan kesihatan wanita',
-        status: 'scheduled',
-        sent: 0,
-        opened: 0,
-        progress: 0,
-        roi: 0
-      }
-    ]
-  };
-}
-
-function getMockGeospatialAnalysis(type) {
-  if (type === 'patients') {
-    return {
-      points: [
-        { lat: 5.4164, lng: 100.3327, name: 'Kuala Terengganu', value: 150 },
-        { lat: 5.3264, lng: 103.1327, name: 'Kuantan', value: 120 },
-        { lat: 5.4164, lng: 101.5327, name: 'Kemaman', value: 80 }
-      ],
-      hotspots: [
-        { name: 'Pusat Bandar Kuala Terengganu', count: 85, density: 85, description: 'Kawasan dengan kepekatan pesakit tertinggi' },
-        { name: 'Kawasan Perumahan Taman Tun Amin', count: 45, density: 65, description: 'Kawasan perumahan dengan potensi pesakit sederhana' }
-      ],
-      event_locations: [
-        { id: 'loc1', name: 'Pusat Membeliak', potential: 'Tinggi', expected_attendees: 50, description: 'Pusat membeliak sibuk dengan trafik tinggi' }
-      ]
-    };
-  } else if (type === 'diseases') {
-    return {
-      points: [
-        { lat: 5.4164, lng: 100.3327, name: 'Kuala Terengganu', value: 45 },
-        { lat: 5.3264, lng: 103.1327, name: 'Kuantan', value: 30 },
-        { lat: 5.4164, lng: 101.5327, name: 'Kemaman', value: 25 }
-      ],
-      hotspots: [
-        { name: 'Kawasan Perindustrian', count: 35, density: 70, description: 'Kawasan dengan kes penyakit pernafasan tinggi' },
-        { name: 'Kawasan Pusat Bandar', count: 25, density: 50, description: 'Kawasan dengan isu penyakit sederhana' }
-      ],
-      event_locations: [
-        { id: 'loc2', name: 'Kompleks Sukan', potential: 'Sederhana', expected_attendees: 30, description: 'Kompleks sukan dengan potensi pesakit sederhana' }
-      ]
-    };
-  }
-  
-  return {};
 }
 
 /************ HEALTH ************/
@@ -2353,7 +2116,7 @@ async function loadGeoHeatmap(type = 'patients') {
                    type === 'diseases' ? '#dc3545' : '#198754';
       
       const marker = L.circleMarker([point.lat, point.lng], {
-        radius: Math.sqrt(point.value) * 100),
+        radius: Math.sqrt(point.value) * 100,
         fillColor: color,
         color: color,
         weight: 1,
@@ -2464,22 +2227,14 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-function loadPatientListForJourney() {
-  // Load patients for journey mapping dropdown
+// --- KEMASKINI: Fungsi untuk memuatkan senarai pesakit sebenar ---
+async function loadPatientListForJourney() {
   try {
-    // This would be implemented with an API call
-    // For now, we'll use a placeholder
+    const r = await callAPI('patients_list', {});
     const select = document.querySelector('#journeyPatient');
     select.innerHTML = '<option value="">Pilih pesakit</option>';
     
-    // Add some placeholder options
-    const placeholderPatients = [
-      { id: '1', name: 'Ahmad bin Ismail' },
-      { id: '2', name: 'Siti Aminah binti Abdullah' },
-      { id: '3', name: 'Mohamed bin Hassan' }
-    ];
-    
-    placeholderPatients.forEach(patient => {
+    r.patients.forEach(patient => {
       const option = document.createElement('option');
       option.value = patient.id;
       option.textContent = patient.name;
