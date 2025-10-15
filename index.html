@@ -57,6 +57,7 @@
     .badge-code{background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe}
     .btn-range.active{background:#111827;color:#fff;border-color:#111827}
     .chip-wrap{gap:.5rem .5rem}
+    .small-mono{font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; font-size:.75rem}
   </style>
 </head>
 <body>
@@ -83,6 +84,11 @@
     <p class="muted mb-3">Sila log masuk dengan akaun Google yang dibenarkan untuk mengakses dashboard.</p>
     <div id="gsiBtn" class="d-inline-block"></div>
     <div id="signinMsg" class="small text-danger mt-3"></div>
+    <div class="mt-3 small text-start">
+      <div class="small-mono">Origin halaman: <span id="originStr"></span></div>
+      <div class="small-mono">Client ID: <span id="clientStr"></span></div>
+      <div id="originHelp" class="text-danger small mt-2"></div>
+    </div>
   </div>
 
   <!-- App -->
@@ -240,7 +246,7 @@
           <div class="chart-h-lg"><canvas id="chartAttn"></canvas></div>
         </div>
 
-        <!-- Jadual Pesakit (tanpa alamat; kod sahaja) -->
+        <!-- Jadual Pesakit -->
         <div class="card p-3">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <h6 class="mb-0">Senarai Pesakit (Ditapis)</h6>
@@ -408,6 +414,9 @@ const Toast = { show(msg){ $('#toastBody').textContent=msg; const t=bootstrap.To
 
 /************ AUTH + INIT ************/
 window.onload = () => {
+  $('#originStr').textContent = location.origin;
+  $('#clientStr').textContent = CLIENT_ID;
+
   const d=new Date(), s=new Date(d.getFullYear(),d.getMonth(),1), e=new Date(d.getFullYear(),d.getMonth()+1,0);
   $('#startDate').value = s.toISOString().slice(0,10);
   $('#endDate').value   = e.toISOString().slice(0,10);
@@ -446,11 +455,31 @@ window.onload = () => {
 };
 
 function initGSI(){
-  if (!window.google || !google.accounts || !google.accounts.id){
-    $('#signinMsg').textContent='Gagal memuatkan Google SSO.'; return;
+  const help = $('#originHelp');
+  // Heuristik: jika origin bukan HTTPS atau localhost → beri mesej awal
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost'){
+    help.textContent = 'Sila akses melalui HTTPS (GIS tidak benarkan HTTP).';
   }
-  google.accounts.id.initialize({ client_id:CLIENT_ID, callback:onSignIn, ux_mode:'popup' });
-  google.accounts.id.renderButton($('#gsiBtn'), { theme:'outline', size:'large', shape:'pill' });
+  if (!window.google || !google.accounts || !google.accounts.id){
+    $('#signinMsg').textContent='Gagal memuatkan Google SSO.';
+    return;
+  }
+  try{
+    google.accounts.id.initialize({ client_id:CLIENT_ID, callback:onSignIn, ux_mode:'popup' });
+    google.accounts.id.renderButton($('#gsiBtn'), { theme:'outline', size:'large', shape:'pill' });
+
+    // Jika 400 (origin tidak dibenarkan), butang tidak akan aktif.
+    // Tunjuk bantuan yang spesifik selepas sedikit delay.
+    setTimeout(()=>{
+      const iframe = $('#gsiBtn')?.querySelector('iframe');
+      if (!iframe){
+        help.innerHTML = 'Butang SSO tidak dimuat. <strong>Pastikan origin ini ditambah dalam “Authorized JavaScript origins”</strong> untuk Client ID di Google Cloud Console.';
+      }
+    }, 1200);
+  }catch(e){
+    $('#signinMsg').textContent='SSO tidak dapat dimulakan.';
+    help.textContent = 'Periksa konfigurasi Client ID & domain yang dibenarkan.';
+  }
 }
 
 async function onSignIn(resp){
@@ -528,7 +557,6 @@ function buildLocalSummary(rows){
 function updateQuickChips(list){
   const wrap = $('#quickChips'); if (!wrap) return;
   wrap.innerHTML = '';
-  // Butang reset (Semua)
   const reset = document.createElement('span');
   reset.className='chip chip-reset';
   reset.textContent='Semua';
@@ -540,7 +568,7 @@ function updateQuickChips(list){
   });
   wrap.appendChild(reset);
 
-  const top = list.slice(0,12); // hadkan supaya kemas
+  const top = list.slice(0,12);
   top.forEach(item=>{
     const code=item.code || item.name;
     const name=CODE_NAME_MAP[code] || item.name || code;
@@ -742,7 +770,6 @@ async function loadPatients(refreshSummary=true){
     const to=Math.min(CUR_PAGE*pageSize,total);
     $('#pageInfo').textContent = `Jumlah: ${total.toLocaleString()} | Halaman ${CUR_PAGE} (${from}-${to})`;
 
-    // Summary
     const sStr=$('#startDate').value, eStr=$('#endDate').value;
     $('#legend1').textContent=fmtPeriod(sStr,eStr);
     $('#legend2').textContent=fmtPeriod(sStr,eStr);
@@ -755,7 +782,6 @@ async function loadPatients(refreshSummary=true){
       labeled=(data.labeled)||0;
       $('#kpiLabeled').textContent=labeled.toLocaleString();
       const rows=data.rows||[];
-      // bina peta kod->nama mesra
       CODE_NAME_MAP = {};
       rows.forEach(r=>{ CODE_NAME_MAP[r[4]] = r[5]; });
       $('#kpiCats').textContent=new Set(rows.map(r=>r[4])).size||0;
@@ -771,14 +797,11 @@ async function loadPatients(refreshSummary=true){
       list = local.list.slice();
     }
     drawDonut(list); drawBar(list.slice(0,8));
-    updateQuickChips(list); // <-- chips pantas dibina di sini
-
-    // Attendance default view = 30 hari
+    updateQuickChips(list);
     drawAttendance(30);
     document.querySelectorAll('.btn-range').forEach(b=>b.classList.remove('active'));
     $('#attn30').classList.add('active');
 
-    // Auto daftar vaksin (jika toggle on)
     if ($('#autoVaxSwitch')?.checked) {
       scanVaccinations(LAST_PATIENT_ROWS,false);
     }
