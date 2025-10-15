@@ -198,7 +198,7 @@
                 <h6 class="mb-0">Taburan Mengikut Kategori <span id="legendCalc" class="badge text-bg-light ms-2"></span></h6>
                 <span id="legend1" class="small muted"></span>
               </div>
-              <div class="small text-muted mb-2">Klik mana-mana kategori untuk tapis jadual pesakit.</div>
+              <div class="small text-muted mb-2">Klik mana-mana kategori untuk tapis jadual pesakit & paparkan trend.</div>
               <div class="chart-h"><canvas id="chartDonut"></canvas></div>
             </div>
           </div>
@@ -208,7 +208,7 @@
                 <h6 class="mb-0">Top Kategori Diagnosis</h6>
                 <span id="legend2" class="small muted"></span>
               </div>
-              <div class="small text-muted mb-2">Klik bar untuk tapis ikut kategori.</div>
+              <div class="small text-muted mb-2">Klik bar untuk tapis ikut kategori & paparkan trend.</div>
               <div class="chart-h"><canvas id="chartBar"></canvas></div>
             </div>
           </div>
@@ -223,22 +223,45 @@
           <div id="quickCats" class="d-flex flex-wrap gap-2 mt-2"></div>
         </div>
 
-        <!-- Graf Kehadiran -->
-        <div class="card p-3 mb-3">
-          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div class="d-flex align-items-center gap-2">
-              <h6 class="mb-0">Graf Kehadiran Pesakit</h6>
-              <span id="attnInfo" class="badge text-bg-light"></span>
-            </div>
-            <div class="btn-group" role="group" aria-label="attn-range">
-              <button class="btn btn-outline-dark btn-sm btn-range" id="attn7"  type="button">7H</button>
-              <button class="btn btn-outline-dark btn-sm btn-range" id="attn14" type="button">14H</button>
-              <button class="btn btn-outline-dark btn-sm btn-range active" id="attn30" type="button">30H</button>
-              <button class="btn btn-outline-dark btn-sm btn-range" id="attn60" type="button">60H</button>
-              <button class="btn btn-outline-dark btn-sm btn-range" id="attn365" type="button">1T</button>
+        <!-- Graf Kehadiran & Trend Kategori -->
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-xl-6">
+            <div class="card p-3 mb-3">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                  <h6 class="mb-0">Graf Kehadiran Pesakit</h6>
+                  <span id="attnInfo" class="badge text-bg-light"></span>
+                </div>
+                <div class="btn-group" role="group" aria-label="attn-range">
+                  <button class="btn btn-outline-dark btn-sm btn-range" id="attn7"  type="button">7H</button>
+                  <button class="btn btn-outline-dark btn-sm btn-range" id="attn14" type="button">14H</button>
+                  <button class="btn btn-outline-dark btn-sm btn-range active" id="attn30" type="button">30H</button>
+                  <button class="btn btn-outline-dark btn-sm btn-range" id="attn60" type="button">60H</button>
+                  <button class="btn btn-outline-dark btn-sm btn-range" id="attn365" type="button">1T</button>
+                </div>
+              </div>
+              <div class="chart-h-lg"><canvas id="chartAttn"></canvas></div>
             </div>
           </div>
-          <div class="chart-h-lg"><canvas id="chartAttn"></canvas></div>
+
+          <div class="col-12 col-xl-6">
+            <div class="card p-3 mb-3">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                  <h6 class="mb-0">Trend Mengikut Kategori <span id="catSeriesBadge" class="badge text-bg-light d-none"></span></h6>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="btn-group" role="group" aria-label="cat-range">
+                    <button class="btn btn-outline-dark btn-sm" id="catGranDay"  type="button">Harian</button>
+                    <button class="btn btn-outline-dark btn-sm" id="catGranMonth" type="button">Bulanan</button>
+                  </div>
+                  <button class="btn btn-outline-secondary btn-sm" id="btnClearCat" type="button"><i class="bi bi-x-circle"></i> Buang Pilihan</button>
+                </div>
+              </div>
+              <div class="small text-muted mb-2" id="catSeriesHint">Klik kategori pada Donut/Bar/Chip untuk melihat trend siri masa mengikut kategori.</div>
+              <div class="chart-h-lg"><canvas id="chartCatSeries"></canvas></div>
+            </div>
+          </div>
         </div>
 
         <!-- Jadual Pesakit (tanpa alamat; diagnosis = kod sahaja) -->
@@ -392,18 +415,19 @@ const BACKEND_URL = 'https://script.google.com/macros/s/AKfycby1A1DrDRsoW3CP9tDI
 
 /************ STATE ************/
 let ID_TOKEN=null;
-let donutChart, barChart, attnChart;
+let donutChart, barChart, attnChart, catChart;
 let CUR_PAGE=1;
 let LAST_PATIENT_ROWS=[];
 let AUTO_VAX_SESSION_KEYS=new Set();
 let CURRENT_LIST_DONUT=[], CURRENT_LIST_BAR=[];
-let CODE_NAME_MAP = {}; // code -> friendly name (jika ada)
+let CODE_NAME_MAP = {}; // code -> friendly name
+let CURRENT_CAT_CODE = ''; // kategori untuk graf siri masa
+let CURRENT_CAT_GRAN = 'day'; // 'day' | 'month'
 
 /************ DOM helpers ************/
 const $ = (q)=>document.querySelector(q);
 const show = el => el.classList.remove('hidden');
 const hide = el => el.classList.add('hidden');
-const pickGran = () => $('#gYear').checked?'year':($('#gMonth').checked?'month':'day');
 const fmtPeriod = (s,e)=>`${s} → ${e}`;
 const Toast = { show(msg){ $('#toastBody').textContent=msg; const t=bootstrap.Toast.getOrCreateInstance($('#toast')); t.show(); } };
 
@@ -417,7 +441,7 @@ window.onload = () => {
   // Actions
   $('#btnSignOut').addEventListener('click', ()=>location.reload());
   $('#btnApply').addEventListener('click', ()=>{ CUR_PAGE=1; loadPatients(true); });
-  $('#btnClear').addEventListener('click', ()=>{ $('#filterDiag').value=''; $('#filterArea').value=''; CUR_PAGE=1; loadPatients(true); });
+  $('#btnClear').addEventListener('click', ()=>{ $('#filterDiag').value=''; $('#filterArea').value=''; CUR_PAGE=1; loadPatients(true); clearCategorySeries(); });
   $('#btnPrev').addEventListener('click', ()=>{ if (CUR_PAGE>1){ CUR_PAGE--; loadPatients(false); } });
   $('#btnNext').addEventListener('click', ()=>{ CUR_PAGE++; loadPatients(false); });
   $('#pageSize').addEventListener('change', ()=>{ CUR_PAGE=1; loadPatients(false); });
@@ -434,7 +458,7 @@ window.onload = () => {
   $('#btnRepSave').addEventListener('click', saveRepeat);
   $('#btnRepDue').addEventListener('click', loadRepeatDue);
 
-  // Attendance buttons with "active" styling
+  // Attendance buttons
   ['attn7','attn14','attn30','attn60','attn365'].forEach(id=>{
     $('#'+id).addEventListener('click', ()=>{
       document.querySelectorAll('.btn-range').forEach(b=>b.classList.remove('active'));
@@ -443,6 +467,11 @@ window.onload = () => {
       drawAttendance(map[id]);
     });
   });
+
+  // Category series buttons
+  $('#catGranDay').addEventListener('click', ()=>{ CURRENT_CAT_GRAN='day'; refreshCategorySeries(); });
+  $('#catGranMonth').addEventListener('click', ()=>{ CURRENT_CAT_GRAN='month'; refreshCategorySeries(); });
+  $('#btnClearCat').addEventListener('click', ()=>{ clearCategorySeries(); applyCategoryFilter(''); });
 
   // Auto-vax manual scan button
   $('#btnScanVaxNow').addEventListener('click', ()=>scanVaccinations(LAST_PATIENT_ROWS,true));
@@ -547,7 +576,7 @@ function drawDonut(list){
         const idx = el[0].index;
         const code = CURRENT_LIST_DONUT[idx]?.code || CURRENT_LIST_DONUT[idx]?.name;
         if (!code) return;
-        applyCategoryFilter(code);
+        applyCategoryFilter(code, true);
       }
     }
   });
@@ -567,7 +596,7 @@ function drawBar(list){
         const idx = el[0].index;
         const code = CURRENT_LIST_BAR[idx]?.code || CURRENT_LIST_BAR[idx]?.name;
         if (!code) return;
-        applyCategoryFilter(code);
+        applyCategoryFilter(code, true);
       }
     }
   });
@@ -601,14 +630,13 @@ function renderQuickCats(list){
     btn.title = (item.code && CODE_NAME_MAP[item.code] && CODE_NAME_MAP[item.code]!==item.code)
       ? `${item.code} • ${CODE_NAME_MAP[item.code]}`
       : (item.code || friendly);
-    btn.addEventListener('click', ()=>applyCategoryFilter(item.code || item.name));
+    btn.addEventListener('click', ()=>applyCategoryFilter(item.code || item.name, true));
     box.appendChild(btn);
   });
 
-  // set active state ikut penapis semasa
   highlightActiveChip();
 }
-function applyCategoryFilter(code){
+function applyCategoryFilter(code, withSeries=false){
   $('#filterDiag').value = (code||'').toUpperCase();
   CUR_PAGE=1;
   loadPatients(false);
@@ -616,6 +644,13 @@ function applyCategoryFilter(code){
   const name = code ? (CODE_NAME_MAP[code] || code) : 'Semua kategori';
   $('#activeFilterMsg').textContent = `Penapis: ${name}`;
   Toast.show(code ? `Ditapis ikut kategori: ${name}` : 'Penapis kategori dibuang');
+
+  if (withSeries && code){
+    CURRENT_CAT_CODE = code.toUpperCase();
+    refreshCategorySeries();
+  } else if (!code){
+    clearCategorySeries();
+  }
 }
 function highlightActiveChip(){
   const code = ($('#filterDiag').value||'').trim().toUpperCase();
@@ -646,7 +681,6 @@ function buildAttendanceSeries(rows, days){
   const total=data.reduce((a,b)=>a+b,0);
   return { labels, data, total };
 }
-
 function buildAttendanceYear(rows){
   const now=new Date(); const start=new Date(now.getFullYear(), now.getMonth()-11, 1);
   const buckets=new Map();
@@ -665,7 +699,6 @@ function buildAttendanceYear(rows){
   const total=data.reduce((a,b)=>a+b,0);
   return { labels, data, total, monthly:true };
 }
-
 function drawAttendance(daysOrYear){
   const ctx=$('#chartAttn');
   if (attnChart) attnChart.destroy();
@@ -681,31 +714,17 @@ function drawAttendance(daysOrYear){
 
   attnChart = new Chart(ctx, {
     type: 'line',
-    data: {
-      labels: series.labels,
-      datasets: [{
-        label: 'Kehadiran',
-        data: series.data,
-        fill: false,
-        tension: 0.25,
-        borderWidth: 2
-      }]
-    },
-    options: {
-      plugins: { legend:{ display:false } },
-      scales: {
-        y: { beginAtZero:true, grid:{ color:'rgba(0,0,0,.05)' } },
-        x: { grid:{ display:false } }
-      },
-      maintainAspectRatio:false
-    }
+    data: { labels: series.labels, datasets: [{ label: 'Kehadiran', data: series.data, fill: false, tension: 0.25, borderWidth: 2 }] },
+    options: { plugins: { legend:{ display:false } }, scales: { y:{ beginAtZero:true, grid:{ color:'rgba(0,0,0,.05)'}}, x:{ grid:{ display:false } } }, maintainAspectRatio:false }
   });
 }
 
 /************ TREND ALERTS & REACTIVATION ************/
 async function loadTrends(){
   try{
-    const r = await callAPI('trend_alerts',{});
+    const diag=($('#filterDiag').value||'').trim();
+    const area=($('#filterArea').value||'').trim();
+    const r = await callAPI('trend_alerts',{ diagnosisCode:diag, areaQuery:area });
     const arr = r.alerts || [];
     if (!arr.length){ $('#trendBox').innerHTML = 'Tiada alert signifikan buat masa ini.'; return; }
     $('#trendBox').innerHTML = arr.map(a=>`
@@ -719,7 +738,9 @@ async function loadTrends(){
 async function loadReactivation(){
   const tb = $('#tblReAct tbody'); if(!tb) return; tb.innerHTML='';
   try{
-    const r = await callAPI('reactivation_list',{ days:30 });
+    const diag=($('#filterDiag').value||'').trim();
+    const area=($('#filterArea').value||'').trim();
+    const r = await callAPI('reactivation_list',{ days:30, diagnosisCode:diag, areaQuery:area });
     const rows = r.rows || [];
     if (!rows.length){ tb.innerHTML = `<tr><td colspan="7" class="text-center text-muted">Tiada rekod.</td></tr>`; return; }
     rows.forEach((x,i)=>{
@@ -797,7 +818,7 @@ async function loadPatients(refreshSummary=true){
       renderQuickCats(local.list);
     }
 
-    // Attendance default view = 30 hari (butang 30H aktif)
+    // Attendance default view = 30 hari
     drawAttendance(30);
     document.querySelectorAll('.btn-range').forEach(b=>b.classList.remove('active'));
     $('#attn30').classList.add('active');
@@ -810,6 +831,9 @@ async function loadPatients(refreshSummary=true){
     // kemas kini mesej penapis
     const codeNow = ($('#filterDiag').value||'').trim().toUpperCase();
     $('#activeFilterMsg').textContent = `Penapis: ${codeNow? (CODE_NAME_MAP[codeNow]||codeNow) : 'Semua kategori'}`;
+
+    // Refresh trend alerts & reactivation mengikut penapis
+    await Promise.all([loadTrends(), loadReactivation()]);
 
     updateStatus('Data dimuat', 100);
   }catch(err){
@@ -916,7 +940,7 @@ async function scanVaccinations(rows, manualTriggered){
 /************ SYNC (ASYNC + PROGRESS) ************/
 async function startSync(){
   const s=$('#startDate').value, e=$('#endDate').value;
-  const gran=pickGran();
+  const gran = $('#gYear').checked?'year':($('#gMonth').checked?'month':'day');
   updateStatus('Memulakan sync…', 10);
   try{
     const { job } = await callAPI('sync_start',{ startISO:s, endISO:e, granularity:gran, dedup:true });
@@ -949,7 +973,7 @@ function updateStatus(message, progress) {
 /************ PADAM / SUSUN ************/
 async function deleteRange(){
   if (!confirm('Adakah anda pasti ingin memadam data dalam julat tarikh ini?')) return;
-  const s=$('#startDate').value, e=$('#endDate').value, gran=pickGran();
+  const s=$('#startDate').value, e=$('#endDate').value, gran=$('#gYear').checked?'year':($('#gMonth').checked?'month':'day');
   try{
     updateStatus('Memadam data…', 50);
     await callAPI('delete_range',{ start:s, end:e, granularity:gran });
@@ -961,7 +985,7 @@ async function deleteRange(){
   }
 }
 async function sortRange(){
-  const s=$('#startDate').value, e=$('#endDate').value, gran=pickGran();
+  const s=$('#startDate').value, e=$('#endDate').value, gran=$('#gYear').checked?'year':($('#gMonth').checked?'month':'day');
   try{
     updateStatus('Menyusun data…', 50);
     await callAPI('sort_range',{ start:s, end:e, granularity:gran, by:'date', order:'asc' });
@@ -1050,6 +1074,41 @@ async function loadRepeatDue(){
         </tr>`);
     });
   }catch(e){ tb.innerHTML = `<tr><td colspan="6" class="text-danger">Ralat: ${e.message}</td></tr>`; }
+}
+
+/************ CATEGORY SERIES (Baru) ************/
+async function refreshCategorySeries(){
+  if (!CURRENT_CAT_CODE){ clearCategorySeries(); return; }
+  try{
+    const s=$('#startDate').value, e=$('#endDate').value;
+    const r = await callAPI('category_series', { code: CURRENT_CAT_CODE, startISO:s, endISO:e, gran: CURRENT_CAT_GRAN });
+    drawCategorySeries(r);
+  }catch(e){
+    console.warn('category_series error:', e.message);
+  }
+}
+function drawCategorySeries(resp){
+  const ctx=$('#chartCatSeries');
+  if (catChart) catChart.destroy();
+  const labels = resp.labels || [];
+  const data   = resp.data || [];
+  const title  = `${resp.name || resp.code || ''} • ${resp.gran==='month'?'Bulanan':'Harian'} • Jumlah: ${resp.total||0}`;
+  $('#catSeriesBadge').classList.remove('d-none');
+  $('#catSeriesBadge').textContent = title;
+  $('#catSeriesHint').textContent = `${resp.start} → ${resp.end}`;
+
+  catChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [{ label: resp.name || resp.code, data, fill:false, tension:0.25, borderWidth:2 }] },
+    options: { plugins:{ legend:{ display:false }}, scales:{ y:{ beginAtZero:true, grid:{color:'rgba(0,0,0,.05)'}}, x:{ grid:{ display:false } } }, maintainAspectRatio:false }
+  });
+}
+function clearCategorySeries(){
+  CURRENT_CAT_CODE='';
+  $('#catSeriesBadge').classList.add('d-none');
+  $('#catSeriesBadge').textContent='';
+  $('#catSeriesHint').textContent='Klik kategori pada Donut/Bar/Chip untuk melihat trend siri masa mengikut kategori.';
+  if (catChart){ catChart.destroy(); catChart=null; }
 }
 </script>
 
