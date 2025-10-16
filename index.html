@@ -933,15 +933,17 @@ window.onload = () => {
   });
   $('#btnSaveCampaign').addEventListener('click', saveCampaign);
 
-  // --- KEMASKINI: MEMBAIKI RALAT .forEach ---
-  // Geospatial
-  document.querySelectorAll('.btn-geo-type').forEach(btn => {
-    btn.addEventListener('click', function() {
-      document.querySelectorAll('.btn-geo-type').forEach(b => b.classList.remove('active'));
-      this.classList.add('active');
-      loadGeoHeatmap(this.dataset.type);
+  // Geospatial - Safe event listener attachment
+  const geoButtons = document.querySelectorAll('.btn-geo-type');
+  if (geoButtons) {
+    geoButtons.forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.btn-geo-type').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        loadGeoHeatmap(this.dataset.type);
+      });
     });
-  });
+  }
 
   // Floating action button
   $('#fabSync').addEventListener('click', startSync);
@@ -1066,6 +1068,7 @@ function buildLocalSummary(rows){
 function drawDonut(list){
   CURRENT_LIST_DONUT = list.slice();
   const ctx=$('#chartDonut');
+  if (!ctx) return;
   const labels=list.map(d=>d.name), values=list.map(d=>d.pct);
   if (donutChart) donutChart.destroy();
   donutChart=new Chart(ctx,{
@@ -1085,6 +1088,7 @@ function drawDonut(list){
 function drawBar(list){
   CURRENT_LIST_BAR = list.slice();
   const ctx=$('#chartBar');
+  if (!ctx) return;
   const labels=list.map(d=>d.name), values=list.map(d=>d.count);
   if (barChart) barChart.destroy();
   barChart=new Chart(ctx,{
@@ -1107,7 +1111,8 @@ function genColors(n){
   return Array.from({length:n},(_,i)=>base[i%base.length]);
 }
 function renderQuickCats(list){
-  const box = $('#quickCats'); box.innerHTML='';
+  const box = $('#quickCats'); if(!box) return;
+  box.innerHTML='';
   if (!list || !list.length){ box.innerHTML = `<span class="subtle">Tiada kategori ditemui.</span>`; return; }
   const all = document.createElement('button'); all.className = 'cat-chip'; all.textContent = 'Semua';
   all.addEventListener('click', ()=>applyCategoryFilter('')); box.appendChild(all);
@@ -1148,9 +1153,11 @@ async function drawAttendance(daysOrYear){
     const labels = r.series.map(x=>x.date);
     const data   = r.series.map(x=>x.count);
 
-    $('#attnInfo').textContent = (days===365) ? `12 Bulan Terkini — Jumlah: ${r.total}` : `${days} Hari Terkini — Jumlah: ${r.total}`;
+    const attnInfoEl = $('#attnInfo');
+    if(attnInfoEl) attnInfoEl.textContent = (days===365) ? `12 Bulan Terkini — Jumlah: ${r.total}` : `${days} Hari Terkini — Jumlah: ${r.total}`;
 
     const ctx=$('#chartAttn');
+    if (!ctx) return;
     if (attnChart) attnChart.destroy();
     attnChart = new Chart(ctx, {
       type: 'line',
@@ -1167,19 +1174,25 @@ async function loadTrends(){
   try{
     const r = await callAPI('trend_alerts',{});
     const arr = r.alerts || [];
+    const trendBox = $('#trendBox');
+    if (!trendBox) return;
     if (!arr.length){ 
-      $('#trendBox').innerHTML = '<div class="data-empty"><i class="bi bi-check-circle"></i><p>Tiada alert signifikan buat masa ini.</p></div>'; 
+      trendBox.innerHTML = '<div class="data-empty"><i class="bi bi-check-circle"></i><p>Tiada alert signifikan buat masa ini.</p></div>'; 
       return; 
     }
-    $('#trendBox').innerHTML = arr.map(a=>`
+    trendBox.innerHTML = arr.map(a=>`
       <div class="d-flex align-items-center gap-2 mb-1 alert alert-${a.growthPct > 0 ? 'danger' : 'success'} py-2">
         <i class="bi bi-arrow-${a.growthPct > 0 ? 'up' : 'down'} text-${a.growthPct > 0 ? 'danger' : 'success'}"></i>
         <span><strong>${a.name}</strong> ${a.growthPct > 0 ? 'meningkat' : 'menurun'} <strong>${Math.abs(a.growthPct)}%</strong> (Kini: ${a.now}, Sebelum: ${a.prev})</span>
       </div>`).join('');
-  }catch(e){ $('#trendBox').innerHTML='<div class="alert alert-warning">Gagal memuatkan alert.</div>'; }
+  }catch(e){ 
+    const trendBox = $('#trendBox');
+    if(trendBox) trendBox.innerHTML='<div class="alert alert-warning">Gagal memuatkan alert.</div>'; 
+  }
 }
 async function loadReactivation(){
-  const tb = $('#tblReAct tbody'); if(!tb) return; tb.innerHTML='';
+  const tb = $('#tblReAct tbody'); if(!tb) return; 
+  tb.innerHTML='';
   try{
     const r = await callAPI('reactivation_list',{ days:30 });
     const rows = r.rows || [];
@@ -1213,10 +1226,7 @@ async function loadPatients(refreshSummary=true, opts={}){
   updateStatus('Memuat senarai pesakit…', 50);
 
   try{
-    // Force cache refresh if explicitly requested
     if (refreshSummary) {
-      const cacheKey = `PATIENTS:${s}|${e}|${diag}|${area}|${CUR_PAGE}|${pageSize}`;
-      // Note: We can't directly clear cache from frontend, but we can add a timestamp to force refresh
       await callAPI('clear_cache', { patterns: [`PATIENTS:${s}|${e}`] });
     }
     
@@ -1227,30 +1237,34 @@ async function loadPatients(refreshSummary=true, opts={}){
     const total=res.total||0;
     const from=(total===0)?0:((CUR_PAGE-1)*pageSize+1);
     const to=Math.min(CUR_PAGE*pageSize,total);
-    $('#pageInfo').textContent = `Jumlah: ${total.toLocaleString()} | Halaman ${CUR_PAGE} (${from}-${to})`;
+    const pageInfoEl = $('#pageInfo');
+    if(pageInfoEl) pageInfoEl.textContent = `Jumlah: ${total.toLocaleString()} | Halaman ${CUR_PAGE} (${from}-${to})`;
 
-    $('#legend1').textContent=fmtPeriod(s,e);
-    $('#legend2').textContent=fmtPeriod(s,e);
-    $('#legendPeriod').textContent=fmtPeriod(s,e);
-    $('#legendCalc').textContent='';
+    const legend1El = $('#legend1'); const legend2El = $('#legend2'); const legendPeriodEl = $('#legendPeriod');
+    if(legend1El) legend1El.textContent=fmtPeriod(s,e);
+    if(legend2El) legend2El.textContent=fmtPeriod(s,e);
+    if(legendPeriodEl) legendPeriodEl.textContent=fmtPeriod(s,e);
+    
+    const legendCalcEl = $('#legendCalc');
+    if(legendCalcEl) legendCalcEl.textContent='';
 
     if (refreshSummary){
       const data = await loadSummary();
       CODE_NAME_MAP = {};
       if (data.rows && data.rows.length){
         data.rows.forEach(r=>{ const code=r[4], name=r[5]; if (code && name) CODE_NAME_MAP[code]=name; });
-        $('#kpiLabeled').textContent=(data.labeled||0).toLocaleString();
-        $('#kpiCats').textContent=new Set(data.rows.map(r=>r[4])).size||0;
+        const kpiLabeledEl = $('#kpiLabeled'); if(kpiLabeledEl) kpiLabeledEl.textContent=(data.labeled||0).toLocaleString();
+        const kpiCatsEl = $('#kpiCats'); if(kpiCatsEl) kpiCatsEl.textContent=new Set(data.rows.map(r=>r[4])).size||0;
         const top=data.rows.slice().sort((a,b)=>b[6]-a[6])[0];
-        $('#kpiTop').textContent=top?top[5]:'-';
+        const kpiTopEl = $('#kpiTop'); if(kpiTopEl) kpiTopEl.textContent=top?top[5]:'-';
         const list = data.rows.map(r=>({ name:r[5], code:r[4], count:r[6], pct:r[7] })).sort((a,b)=>b.count-a.count);
         drawDonut(list); drawBar(list.slice(0,8)); renderQuickCats(list);
       }else{
         const local=buildLocalSummary(LAST_PATIENT_ROWS);
-        $('#legendCalc').textContent='Local calc';
-        $('#kpiLabeled').textContent=local.labeled.toLocaleString();
-        $('#kpiCats').textContent=Object.keys(local.counts).length;
-        $('#kpiTop').textContent=local.topName||'-';
+        const legendCalcEl = $('#legendCalc'); if(legendCalcEl) legendCalcEl.textContent='Local calc';
+        const kpiLabeledEl = $('#kpiLabeled'); if(kpiLabeledEl) kpiLabeledEl.textContent=local.labeled.toLocaleString();
+        const kpiCatsEl = $('#kpiCats'); if(kpiCatsEl) kpiCatsEl.textContent=Object.keys(local.counts).length;
+        const kpiTopEl = $('#kpiTop'); if(kpiTopEl) kpiTopEl.textContent=local.topName||'-';
         drawDonut(local.list); drawBar(local.list.slice(0,8)); renderQuickCats(local.list);
       }
     }
@@ -1265,7 +1279,8 @@ async function loadPatients(refreshSummary=true, opts={}){
     if ($('#autoVaxSwitch')?.checked) { scanVaccinations(LAST_PATIENT_ROWS,false); }
 
     const codeNow = ($('#filterDiag').value||'').trim().toUpperCase();
-    $('#activeFilterMsg').textContent = `Penapis: ${codeNow? (CODE_NAME_MAP[codeNow]||codeNow) : 'Semua kategori'}`;
+    const activeFilterMsgEl = $('#activeFilterMsg');
+    if(activeFilterMsgEl) activeFilterMsgEl.textContent = `Penapis: ${codeNow? (CODE_NAME_MAP[codeNow]||codeNow) : 'Semua kategori'}`;
 
     updateStatus('Data dimuat', 100);
   }catch(err){
@@ -1278,7 +1293,8 @@ async function loadPatients(refreshSummary=true, opts={}){
 }
 
 function renderPatients(rows){
-  const tb=$('#tbl tbody'); tb.innerHTML='';
+  const tb=$('#tbl tbody'); if(!tb) return;
+  tb.innerHTML='';
   if (!rows.length) { 
     tb.innerHTML = `<tr><td colspan="7" class="text-center py-4"><div class="data-empty"><i class="bi bi-search"></i><p>Tiada data ditemui untuk penapis yang dipilih</p></div></td></tr>`; 
     return; 
@@ -1317,7 +1333,7 @@ const VAX_PATTERNS = [
 ];
 function detectVaxType(text){ if (!text) return null; for (const p of VAX_PATTERNS){ if (p.re.test(text)) return { type:p.type, days:p.days }; } return null; }
 async function scanVaccinations(rows, manualTriggered){
-  if (!rows || !rows.length) { $('#autoVaxMsg').textContent='Tiada data untuk imbas.'; return; }
+  if (!rows || !rows.length) { const autoVaxMsgEl = $('#autoVaxMsg'); if(autoVaxMsgEl) autoVaxMsgEl.textContent='Tiada data untuk imbas.'; return; }
   let attempts=0, success=0;
   for (const r of rows){
     const blob = [r.diagnosisCodes||'', r.diagnosisText||''].join(' ');
@@ -1336,7 +1352,7 @@ async function scanVaccinations(rows, manualTriggered){
     }catch(e){ console.warn('auto vax upsert fail:', e.message); }
   }
   const msg = attempts ? `Auto-vaksin: ${success}/${attempts} didaftar.` : 'Auto-vaksin: Tiada kes vaksin dikesan.';
-  $('#autoVaxMsg').textContent = msg;
+  const autoVaxMsgEl = $('#autoVaxMsg'); if(autoVaxMsgEl) autoVaxMsgEl.textContent = msg;
   if (manualTriggered) Toast.show(msg);
 }
 
@@ -1350,24 +1366,20 @@ async function startSync(){
   isSyncing = true;
   const s=$('#startDate').value, e=$('#endDate').value; const gran=pickGran();
   
-  // Show sync status bar
   showSyncStatus('Memulakan sync data...');
   updateStatus('Memulakan sync…', 10);
   
   try{
     const { job, synced, total } = await callAPI('sync_start',{ startISO:s, endISO:e, granularity:gran, dedup:true });
     
-    // Show immediate feedback
     showSyncStatus(`Sync dimulakan: ${synced}/${total} rekod baharu`);
     updateStatus(`Sync dimulakan: ${synced}/${total} rekod baharu`, 30);
     
     await pollProgress(job);
     
-    // Force refresh all data after sync
     CUR_PAGE=1; 
     await loadPatients(true, { refreshGlobal:true });
     
-    // Show success message
     showSyncStatus(`Sync selesai: ${synced}/${total} rekod baharu`, false);
     Toast.show(`Sync selesai: ${synced}/${total} rekod baharu`);
   }catch(err){ 
@@ -1423,12 +1435,13 @@ async function sortRange(){
   }catch(err){ updateStatus('Susun gagal: ' + err.message, 0); }
 }
 function updateStatus(message, progress){ 
-  $('#statusLine').textContent = message; 
-  $('#progressFill').style.width = `${progress}%`;
+  const statusLineEl = $('#statusLine'); const progressFillEl = $('#progressFill');
+  if(statusLineEl) statusLineEl.textContent = message; 
+  if(progressFillEl) progressFillEl.style.width = `${progress}%`;
   if (progress === 100) {
     setTimeout(() => {
-      $('#progressFill').style.width = '0%';
-      $('#statusLine').textContent = 'Sedia';
+      if(progressFillEl) progressFillEl.style.width = '0%';
+      if(statusLineEl) statusLineEl.textContent = 'Sedia';
     }, 2000);
   }
 }
@@ -1519,8 +1532,7 @@ function exportCSV(){
 async function loadPredictions() {
   try {
     const r = await callAPI('predictive_analytics', { type: 'disease_trends' });
-    
-    const ctx = $('#chartPredictions');
+    const ctx = $('#chartPredictions'); if (!ctx) return;
     if (predictionChart) predictionChart.destroy();
     
     predictionChart = new Chart(ctx, {
@@ -1548,30 +1560,24 @@ async function loadPredictions() {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: {
-            position: 'top',
-          },
-          tooltip: {
-            mode: 'index',
-            intersect: false,
-          }
+          legend: { position: 'top', },
+          tooltip: { mode: 'index', intersect: false, }
         },
         scales: {
           y: {
             beginAtZero: true,
-            title: {
-              display: true,
-              text: 'Bilangan Kes'
-            }
+            title: { display: true, text: 'Bilangan Kes' }
           }
         }
       }
     });
     
-    $('#predictionInsight').textContent = r.insight || 'Ramalan berdasarkan data 3 bulan terakhir';
+    const predictionInsightEl = $('#predictionInsight');
+    if(predictionInsightEl) predictionInsightEl.textContent = r.insight || 'Ramalan berdasarkan data 3 bulan terakhir';
   } catch (e) {
     console.error('Error loading predictions:', e);
-    $('#predictionInsight').textContent = 'Gagal memuatkan ramalan';
+    const predictionInsightEl = $('#predictionInsight');
+    if(predictionInsightEl) predictionInsightEl.textContent = 'Gagal memuatkan ramalan';
   }
 }
 
@@ -1579,8 +1585,7 @@ async function loadPLV() {
   try {
     const period = $('#plvPeriod').val();
     const r = await callAPI('predictive_analytics', { type: 'plv', period });
-    
-    const ctx = $('#chartPLV');
+    const ctx = $('#chartPLV'); if (!ctx) return;
     if (plvChart) plvChart.destroy();
     
     plvChart = new Chart(ctx, {
@@ -1590,76 +1595,48 @@ async function loadPLV() {
         datasets: [{
           label: 'Nilai Sepanjang Hayat (RM)',
           data: r.values,
-          backgroundColor: [
-            'rgba(13, 110, 253, 0.7)',
-            'rgba(25, 135, 84, 0.7)',
-            'rgba(255, 193, 7, 0.7)',
-            'rgba(220, 53, 69, 0.7)',
-            'rgba(108, 117, 125, 0.7)'
-          ],
-          borderColor: [
-            'rgba(13, 110, 253, 1)',
-            'rgba(25, 135, 84, 1)',
-            'rgba(255, 193, 7, 1)',
-            'rgba(220, 53, 69, 1)',
-            'rgba(108, 117, 125, 1)'
-          ],
+          backgroundColor: ['rgba(13, 110, 253, 0.7)', 'rgba(25, 135, 84, 0.7)', 'rgba(255, 193, 7, 0.7)', 'rgba(220, 53, 69, 0.7)', 'rgba(108, 117, 125, 0.7)'],
+          borderColor: ['rgba(13, 110, 253, 1)', 'rgba(25, 135, 84, 1)', 'rgba(255, 193, 7, 1)', 'rgba(220, 53, 69, 1)', 'rgba(108, 117, 125, 1)'],
           borderWidth: 1
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            display: false
-          }
-        },
+        plugins: { legend: { display: false } },
         scales: {
           y: {
             beginAtZero: true,
-            title: {
-              display: true,
-              text: 'RM'
-            }
+            title: { display: true, text: 'RM' }
           }
         }
       }
     });
     
-    $('#avgPLV').textContent = `RM ${r.average || 0}`;
+    const avgPLVEl = $('#avgPLV');
+    if(avgPLVEl) avgPLVEl.textContent = `RM ${r.average || 0}`;
   } catch (e) {
     console.error('Error loading PLV:', e);
-    $('#avgPLV').textContent = 'RM 0';
+    const avgPLVEl = $('#avgPLV');
+    if(avgPLVEl) avgPLVEl.textContent = 'RM 0';
   }
 }
 
 async function loadConversion() {
   try {
     const r = await callAPI('predictive_analytics', { type: 'conversion' });
-    
-    const ctx = $('#chartConversion');
+    const ctx = $('#chartConversion'); if (!ctx) return;
     if (conversionChart) conversionChart.destroy();
     
     conversionChart = new Chart(ctx, {
-      type: 'funnel',
+      type: 'bar',
       data: {
         labels: r.labels,
         datasets: [{
           label: 'Bilangan',
           data: r.values,
-          backgroundColor: [
-            'rgba(13, 110, 253, 0.7)',
-            'rgba(25, 135, 84, 0.7)',
-            'rgba(255, 193, 7, 0.7)',
-            'rgba(220, 53, 69, 0.7)'
-          ],
-          borderColor: [
-            'rgba(13, 110, 253, 1)',
-            'rgba(25, 135, 84, 1)',
-            'rgba(255, 193, 7, 1)',
-            'rgba(220, 53, 69, 1)'
-          ],
+          backgroundColor: ['rgba(13, 110, 253, 0.7)', 'rgba(25, 135, 84, 0.7)', 'rgba(255, 193, 7, 0.7)', 'rgba(220, 53, 69, 0.7)'],
+          borderColor: ['rgba(13, 110, 253, 1)', 'rgba(25, 135, 84, 1)', 'rgba(255, 193, 7, 1)', 'rgba(220, 53, 69, 1)'],
           borderWidth: 1
         }]
       },
@@ -1667,9 +1644,7 @@ async function loadConversion() {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: {
-            display: false
-          },
+          legend: { display: false },
           tooltip: {
             callbacks: {
               label: function(context) {
@@ -1685,18 +1660,20 @@ async function loadConversion() {
       }
     });
     
-    $('#currentConversion').textContent = `${r.rate || 0}%`;
+    const currentConversionEl = $('#currentConversion');
+    if(currentConversionEl) currentConversionEl.textContent = `${r.rate || 0}%`;
   } catch (e) {
     console.error('Error loading conversion:', e);
-    $('#currentConversion').textContent = '0%';
+    const currentConversionEl = $('#currentConversion');
+    if(currentConversionEl) currentConversionEl.textContent = '0%';
   }
 }
 
 async function loadChurnRisk() {
   try {
     const r = await callAPI('predictive_analytics', { type: 'churn_risk' });
-    const tb = $('#tblChurnRisk tbody');
-    tb.innerHTML = '';
+    const tb = $('#tblChurnRisk tbody'); if(!tb) return;
+    tb.innerHTML='';
     
     if (!r.patients || !r.patients.length) {
       tb.innerHTML = `<tr><td colspan="4" class="text-center py-4"><div class="data-empty"><i class="bi bi-shield-exclamation"></i><p>Tiada pesakit berisiko tinggi</p></div></td></tr>`;
@@ -1720,57 +1697,87 @@ async function loadChurnRisk() {
     });
   } catch (e) {
     console.error('Error loading churn risk:', e);
-    const tb = $('#tblChurnRisk tbody');
+    const tb = $('#tblChurnRisk tbody'); if(!tb) return;
     tb.innerHTML = `<tr><td colspan="4" class="text-danger">Ralat: ${e.message}</td></tr>`;
   }
 }
 
 /************ PATIENT JOURNEY ************/
+async function loadPatientListForJourney() {
+  try {
+    const r = await callAPI('patients_list', {});
+    const select = document.querySelector('#journeyPatient');
+    if (!select) return;
+    select.innerHTML = '<option value="">Pilih pesakit</option>';
+    
+    if (r.patients && r.patients.length) {
+      r.patients.forEach(patient => {
+        const option = document.createElement('option');
+        option.value = patient.id;
+        option.textContent = patient.name;
+        select.appendChild(option);
+      });
+    }
+  } catch (e) {
+    console.error('Error loading patient list for journey:', e);
+  }
+}
+
 async function loadPatientJourney() {
-  const patientId = $('#journeyPatient').val();
+  const patientId = $('#journeyPatient')?.value;
   if (!patientId) {
-    $('#patientJourneyMap').innerHTML = `
-      <div class="data-empty">
-        <i class="bi bi-person-walking"></i>
-        <p>Sila pilih pesakit untuk melihat perjalanan mereka</p>
-      </div>
-    `;
+    const journeyMap = $('#patientJourneyMap');
+    if (journeyMap) {
+      journeyMap.innerHTML = `
+        <div class="data-empty">
+          <i class="bi bi-person-walking"></i>
+          <p>Sila pilih pesakit untuk melihat perjalanan mereka</p>
+        </div>
+      `;
+    }
     return;
   }
   
   try {
     const r = await callAPI('patient_journey', { patient_id: patientId });
+    const journeyMap = $('#patientJourneyMap'); if(!journeyMap) return;
     
     let journeyHtml = '<div class="timeline">';
-    r.steps.forEach((step, i) => {
-      const statusClass = step.completed ? 'text-success' : 'text-muted';
-      const icon = step.completed ? 'check-circle-fill' : 'circle';
-      
-      journeyHtml += `
-        <div class="patient-journey-step mb-3">
-          <div class="d-flex justify-content-between align-items-center">
-            <h6 class="${statusClass}">${step.title}</h6>
-            <small class="text-muted">${step.date || '-'}</small>
+    if (r.steps && r.steps.length) {
+      r.steps.forEach((step, i) => {
+        const statusClass = step.completed ? 'text-success' : 'text-muted';
+        const icon = step.completed ? 'check-circle-fill' : 'circle';
+        
+        journeyHtml += `
+          <div class="patient-journey-step mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+              <h6 class="${statusClass}">${step.title}</h6>
+              <small class="text-muted">${step.date || '-'}</small>
+            </div>
+            <p class="small">${step.description || ''}</p>
+            ${step.duration ? `<small class="text-muted">Tempoh: ${step.duration}</small>` : ''}
           </div>
-          <p class="small">${step.description || ''}</p>
-          ${step.duration ? `<small class="text-muted">Tempoh: ${step.duration}</small>` : ''}
-        </div>
-      `;
-    });
+        `;
+      });
+    } else {
+      journeyHtml += '<div class="alert alert-info">Tiada data perjalanan pesakit dijumpai.</div>';
+    }
     journeyHtml += '</div>';
     
-    $('#patientJourneyMap').innerHTML = journeyHtml;
+    journeyMap.innerHTML = journeyHtml;
   } catch (e) {
     console.error('Error loading patient journey:', e);
-    $('#patientJourneyMap').innerHTML = `<div class="alert alert-danger">Ralat: ${e.message}</div>`;
+    const journeyMap = $('#patientJourneyMap');
+    if (journeyMap) {
+      journeyMap.innerHTML = `<div class="alert alert-danger">Ralat: ${e.message}</div>`;
+    }
   }
 }
 
 async function loadWaitTime() {
   try {
     const r = await callAPI('patient_journey', { type: 'wait_time_analysis' });
-    
-    const ctx = $('#chartWaitTime');
+    const ctx = $('#chartWaitTime'); if (!ctx) return;
     if (waitTimeChart) waitTimeChart.destroy();
     
     waitTimeChart = new Chart(ctx, {
@@ -1797,34 +1804,21 @@ async function loadWaitTime() {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'top',
-          }
-        },
+        plugins: { legend: { position: 'top', } },
         scales: {
           y: {
             type: 'linear',
             display: true,
             position: 'left',
-            title: {
-              display: true,
-              text: 'Kepuasan Pesakit (%)'
-            },
-            min: 0,
-            max: 100
+            title: { display: true, text: 'Kepuasan Pesakit (%)' },
+            min: 0, max: 100
           },
           y1: {
             type: 'linear',
             display: true,
             position: 'right',
-            title: {
-              display: true,
-              text: 'Tempoh Menunggu (minit)'
-            },
-            grid: {
-              drawOnChartArea: false
-            }
+            title: { display: true, text: 'Tempoh Menunggu (minit)' },
+            grid: { drawOnChartArea: false }
           }
         }
       }
@@ -1838,76 +1832,85 @@ async function loadWaitTime() {
 async function loadSegments() {
   try {
     const r = await callAPI('patient_segmentation');
+    const container = $('#patientSegments'); if (!container) return;
+    container.innerHTML='';
     
-    const container = $('#patientSegments');
-    container.innerHTML = '';
-    
-    r.segments.forEach((segment, i) => {
-      const segmentCard = document.createElement('div');
-      segmentCard.className = 'col-md-6 col-lg-4';
-      
-      const riskColor = segment.risk === 'high' ? 'danger' : segment.risk === 'medium' ? 'warning' : 'success';
-      
-      segmentCard.innerHTML = `
-        <div class="card segment-card h-100" data-segment="${segment.id}">
-          <div class="segment-size badge bg-secondary">${segment.size} pesakit</div>
-          <div class="card-body">
-            <h6 class="card-title">${segment.name}</h6>
-            <p class="card-text small">${segment.description}</p>
-            <div class="d-flex justify-content-between align-items-center">
-              <span class="badge bg-${riskColor}">Risiko: ${segment.risk === 'high' ? 'Tinggi' : segment.risk === 'medium' ? 'Sederhana' : 'Rendah'}</span>
-              <span class="badge bg-primary">Nilai: RM ${segment.value}</span>
+    if (r.segments && r.segments.length) {
+      r.segments.forEach((segment, i) => {
+        const segmentCard = document.createElement('div');
+        segmentCard.className = 'col-md-6 col-lg-4';
+        
+        const riskColor = segment.risk === 'high' ? 'danger' : segment.risk === 'medium' ? 'warning' : 'success';
+        
+        segmentCard.innerHTML = `
+          <div class="card segment-card h-100" data-segment="${segment.id}">
+            <div class="segment-size badge bg-secondary">${segment.size} pesakit</div>
+            <div class="card-body">
+              <h6 class="card-title">${segment.name}</h6>
+              <p class="card-text small">${segment.description}</p>
+              <div class="d-flex justify-content-between align-items-center">
+                <span class="badge bg-${riskColor}">Risiko: ${segment.risk === 'high' ? 'Tinggi' : segment.risk === 'medium' ? 'Sederhana' : 'Rendah'}</span>
+                <span class="badge bg-primary">Nilai: RM ${segment.value}</span>
+              </div>
             </div>
           </div>
-        </div>
-      `;
+        `;
+        
+        container.appendChild(segmentCard);
+      });
       
-      container.appendChild(segmentCard);
-    });
-    
-    // Load personas
-    loadPersonas(r.segments);
-    
-    // Load segment potential chart
-    loadSegmentPotential(r.segments);
+      if (r.segments.length) {
+        loadPersonas(r.segments);
+        loadSegmentPotential(r.segments);
+      }
+    } else {
+      container.innerHTML = '<div class="alert alert-info">Tiada segmen pesakit dijumpai.</div>';
+    }
   } catch (e) {
     console.error('Error loading segments:', e);
-    $('#patientSegments').innerHTML = `<div class="alert alert-danger">Ralat: ${e.message}</div>`;
+    const container = $('#patientSegments');
+    if (container) {
+      container.innerHTML = `<div class="alert alert-danger">Ralat: ${e.message}</div>`;
+    }
   }
 }
 
 function loadPersonas(segments) {
-  const container = $('#patientPersonas');
-  container.innerHTML = '';
+  const container = $('#patientPersonas'); if (!container) return;
+  container.innerHTML='';
   
-  segments.forEach((segment, i) => {
-    if (i >= 4) return; // Limit to 4 personas
-    
-    const personaCard = document.createElement('div');
-    personaCard.className = 'col-md-6';
-    
-    const avatarIcon = segment.avatar || 'person';
-    
-    personaCard.innerHTML = `
-      <div class="card persona-card">
-        <div class="persona-avatar">
-          <i class="bi bi-${avatarIcon}"></i>
+  if (segments && segments.length) {
+    segments.forEach((segment, i) => {
+      if (i >= 4) return; // Limit to 4 personas
+      
+      const personaCard = document.createElement('div');
+      personaCard.className = 'col-md-6';
+      
+      const avatarIcon = segment.avatar || 'person';
+      
+      personaCard.innerHTML = `
+        <div class="card persona-card">
+          <div class="persona-avatar">
+            <i class="bi bi-${avatarIcon}"></i>
+          </div>
+          <h6>${segment.persona_name}</h6>
+          <p class="small text-muted">${segment.persona_description}</p>
+          <div class="mt-2">
+            <small class="text-muted">Demografi: ${segment.demographics}</small><br>
+            <small class="text-muted">Keperluan: ${segment.needs}</small>
+          </div>
         </div>
-        <h6>${segment.persona_name}</h6>
-        <p class="small text-muted">${segment.persona_description}</p>
-        <div class="mt-2">
-          <small class="text-muted">Demografi: ${segment.demographics}</small><br>
-          <small class="text-muted">Keperluan: ${segment.needs}</small>
-        </div>
-      </div>
-    `;
-    
-    container.appendChild(personaCard);
-  });
+      `;
+      
+      container.appendChild(personaCard);
+    });
+  } else {
+    container.innerHTML = '<div class="alert alert-info">Tiada persona pesakit dijumpai.</div>';
+  }
 }
 
 function loadSegmentPotential(segments) {
-  const ctx = $('#chartSegmentPotential');
+  const ctx = $('#chartSegmentPotential'); if (!ctx) return;
   if (segmentPotentialChart) segmentPotentialChart.destroy();
   
   segmentPotentialChart = new Chart(ctx, {
@@ -1937,11 +1940,7 @@ function loadSegmentPotential(segments) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      elements: {
-        line: {
-          borderWidth: 2
-        }
-      }
+      elements: { line: { borderWidth: 2 } }
     }
   });
 }
@@ -1950,63 +1949,70 @@ function loadSegmentPotential(segments) {
 async function loadCampaigns() {
   try {
     const r = await callAPI('campaign_list');
+    const container = $('#campaignList'); if (!container) return;
+    container.innerHTML='';
     
-    const container = $('#campaignList');
-    container.innerHTML = '';
-    
-    r.campaigns.forEach((campaign, i) => {
-      const statusClass = campaign.status === 'active' ? 'success' : campaign.status === 'scheduled' ? 'warning' : 'secondary';
-      const statusText = campaign.status === 'active' ? 'Aktif' : campaign.status === 'scheduled' ? 'Dijadualkan' : 'Selesai';
-      
-      const campaignCard = document.createElement('div');
-      campaignCard.className = 'col-md-6 col-lg-4';
-      
-      campaignCard.innerHTML = `
-        <div class="card campaign-card h-100">
-          <div class="campaign-status">
-            <span class="badge bg-${statusClass}">${statusText}</span>
-          </div>
-          <div class="card-body">
-            <h6 class="card-title">${campaign.name}</h6>
-            <p class="card-text small">${campaign.description}</p>
-            <div class="d-flex justify-content-between align-items-center mt-2">
-              <small class="text-muted">Jenis: ${campaign.type}</small>
-              <small class="text-muted">Sasaran: ${campaign.segment}</small>
+    if (r.campaigns && r.campaigns.length) {
+      r.campaigns.forEach((campaign, i) => {
+        const statusClass = campaign.status === 'active' ? 'success' : campaign.status === 'scheduled' ? 'warning' : 'secondary';
+        const statusText = campaign.status === 'active' ? 'Aktif' : campaign.status === 'scheduled' ? 'Dijadualkan' : 'Selesai';
+        
+        const campaignCard = document.createElement('div');
+        campaignCard.className = 'col-md-6 col-lg-4';
+        
+        campaignCard.innerHTML = `
+          <div class="card campaign-card h-100">
+            <div class="campaign-status">
+              <span class="badge bg-${statusClass}">${statusText}</span>
             </div>
-            <div class="mt-2">
-              <div class="progress" style="height: 5px;">
-                <div class="progress-bar bg-primary" style="width: ${campaign.progress || 0}%"></div>
+            <div class="card-body">
+              <h6 class="card-title">${campaign.name}</h6>
+              <p class="card-text small">${campaign.description}</p>
+              <div class="d-flex justify-content-between align-items-center mt-2">
+                <small class="text-muted">Jenis: ${campaign.type}</small>
+                <small class="text-muted">Sasaran: ${campaign.segment}</small>
               </div>
-              <small class="text-muted">${campaign.sent || 0} hantaran, ${campaign.opened || 0} dibuka</small>
-            </div>
-            <div class="mt-2 d-flex justify-content-between">
-              <small class="${campaign.roi > 0 ? 'roi-positive' : campaign.roi < 0 ? 'roi-negative' : 'roi-neutral'}">ROI: ${campaign.roi > 0 ? '+' : ''}${campaign.roi}%</small>
-              <div class="btn-group btn-group-sm">
-                <button class="btn btn-outline-primary btn-sm" onclick="viewCampaignDetails('${campaign.id}')">
-                  <i class="bi bi-eye"></i>
-                </button>
-                <button class="btn btn-outline-secondary btn-sm" onclick="editCampaign('${campaign.id}')">
-                  <i class="bi bi-pencil"></i>
-                </button>
+              <div class="mt-2">
+                <div class="progress" style="height: 5px;">
+                  <div class="progress-bar bg-primary" style="width: ${campaign.progress || 0}%"></div>
+                </div>
+                <small class="text-muted">${campaign.sent || 0} hantaran, ${campaign.opened || 0} dibuka</small>
+              </div>
+              <div class="mt-2 d-flex justify-content-between">
+                <small class="${campaign.roi > 0 ? 'roi-positive' : campaign.roi < 0 ? 'roi-negative' : 'roi-neutral'}">ROI: ${campaign.roi > 0 ? '+' : ''}${campaign.roi}%</small>
+                <div class="btn-group btn-group-sm">
+                  <button class="btn btn-outline-primary btn-sm" onclick="viewCampaignDetails('${campaign.id}')">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                  <button class="btn btn-outline-secondary btn-sm" onclick="editCampaign('${campaign.id}')">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      `;
+        `;
+        
+        container.appendChild(campaignCard);
+      });
       
-      container.appendChild(campaignCard);
-    });
-    
-    // Load campaign ROI chart
-    loadCampaignROI(r.campaigns);
+      if (r.campaigns.length) {
+        loadCampaignROI(r.campaigns);
+      }
+    } else {
+      container.innerHTML = '<div class="alert alert-info">Tiada kempen aktif pada masa ini.</div>';
+    }
   } catch (e) {
     console.error('Error loading campaigns:', e);
-    $('#campaignList').innerHTML = `<div class="alert alert-danger">Ralat: ${e.message}</div>`;
+    const container = $('#campaignList');
+    if (container) {
+      container.innerHTML = `<div class="alert alert-danger">Ralat: ${e.message}</div>`;
+    }
   }
 }
 
 function loadCampaignROI(campaigns) {
-  const ctx = $('#chartCampaignROI');
+  const ctx = $('#chartCampaignROI'); if (!ctx) return;
   if (campaignRoiChart) campaignRoiChart.destroy();
   
   campaignRoiChart = new Chart(ctx, {
@@ -2024,32 +2030,25 @@ function loadCampaignROI(campaigns) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false
-        }
-      },
+      plugins: { legend: { display: false } },
       scales: {
         y: {
           beginAtZero: true,
-          title: {
-            display: true,
-            text: 'ROI (%)'
-          }
+          title: { display: true, text: 'ROI (%)' }
         }
       }
     }
   });
 }
 
-function saveCampaign() {
+async function saveCampaign() {
   const formData = {
-    name: document.querySelector('#campaignName').value,
-    type: document.querySelector('#campaignType').value,
-    segment: document.querySelector('#campaignSegment').value,
-    message: document.querySelector('#campaignMessage').value,
-    start_date: document.querySelector('#campaignStartDate').value,
-    end_date: document.querySelector('#campaignEndDate').value
+    name: document.querySelector('#campaignName')?.value,
+    type: document.querySelector('#campaignType')?.value,
+    segment: document.querySelector('#campaignSegment')?.value,
+    message: document.querySelector('#campaignMessage')?.value,
+    start_date: document.querySelector('#campaignStartDate')?.value,
+    end_date: document.querySelector('#campaignEndDate')?.value
   };
   
   if (!formData.name || !formData.type || !formData.segment || !formData.message) {
@@ -2058,17 +2057,15 @@ function saveCampaign() {
   }
   
   try {
-    const result = callAPI('campaign_create', formData);
+    await callAPI('campaign_create', formData);
     
-    // Close modal
     const modal = bootstrap.Modal.getInstance(document.getElementById('campaignModal'));
-    modal.hide();
+    if (modal) modal.hide();
     
-    // Reset form
-    document.querySelector('#campaignForm').reset();
+    const form = document.querySelector('#campaignForm');
+    if(form) form.reset();
     
-    // Reload campaigns
-    loadCampaigns();
+    await loadCampaigns();
     
     Toast.show('Kempen berjaya dicipta');
   } catch (e) {
@@ -2078,13 +2075,13 @@ function saveCampaign() {
 }
 
 function viewCampaignDetails(campaignId) {
-  // Implementation for viewing campaign details
   console.log('View campaign details:', campaignId);
+  Toast.show(`Memuatkan butiran kempen ${campaignId}...`);
 }
 
 function editCampaign(campaignId) {
-  // Implementation for editing campaign
   console.log('Edit campaign:', campaignId);
+  Toast.show(`Membuka editor kempen ${campaignId}...`);
 }
 
 /************ GEOSPATIAL ANALYSIS ************/
@@ -2093,57 +2090,57 @@ let geoMapInstance = null;
 async function loadGeoHeatmap(type = 'patients') {
   try {
     const r = await callAPI('geospatial_analysis', { type });
+    const container = $('#geoHeatmap'); if (!container) return;
     
-    // Initialize map if not already created
-    if (!geoMapInstance) {
-      geoMapInstance = L.map('geoHeatmap').setView([4.2105, 101.9758], 11); // Center of Malaysia
-      
+    if (!geoMapInstance && typeof L !== 'undefined') {
+      geoMapInstance = L.map('geoHeatmap').setView([4.2105, 101.9758], 11);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(geoMapInstance);
+    } else if (!geoMapInstance) {
+      console.error('Leaflet library not loaded');
+      container.innerHTML = `<div class="alert alert-danger">Ralat: Peta Leaflet tidak dapat dimuatkan.</div>`;
+      return;
     }
     
-    // Clear existing markers
-    geoMapInstance.eachLayer(layer => {
-      if (layer instanceof L.Marker) {
-        geoMapInstance.removeLayer(layer);
-      }
-    });
+    if (geoMapInstance) {
+      geoMapInstance.eachLayer(layer => {
+        if (layer instanceof L.Marker || layer instanceof L.CircleMarker) {
+          geoMapInstance.removeLayer(layer);
+        }
+      });
+    }
     
-    // Add new markers
-    r.points.forEach(point => {
-      const color = type === 'patients' ? '#0d6efd' : 
-                   type === 'diseases' ? '#dc3545' : '#198754';
-      
-      const marker = L.circleMarker([point.lat, point.lng], {
-        radius: Math.sqrt(point.value) * 100,
-        fillColor: color,
-        color: color,
-        weight: 1,
-        opacity: 0.7
-      }).addTo(geoMapInstance);
-      
-      marker.bindPopup(`
-        <strong>${point.name || 'Lokasi'}</strong><br>
-        Nilai: ${point.value}<br>
-        ${point.details || ''}
-      `);
-    });
+    if (r.points && r.points.length && geoMapInstance) {
+      r.points.forEach(point => {
+        const color = type === 'patients' ? '#0d6efd' : type === 'diseases' ? '#dc3545' : '#198754';
+        const marker = L.circleMarker([point.lat, point.lng], {
+          radius: Math.sqrt(point.value) * 100,
+          fillColor: color,
+          color: color,
+          weight: 1,
+          opacity: 0.7
+        }).addTo(geoMapInstance);
+        
+        marker.bindPopup(`<strong>${point.name || 'Lokasi'}</strong><br>Nilai: ${point.value}<br>${point.details || ''}`);
+      });
+    }
     
-    // Load hotspots
-    loadHotspots(r.hotspots);
-    
-    // Load event locations
-    loadEventLocations(r.event_locations);
+    if (r.hotspots && r.hotspots.length) loadHotspots(r.hotspots);
+    if (r.event_locations && r.event_locations.length) loadEventLocations(r.event_locations);
+
   } catch (e) {
     console.error('Error loading geo heatmap:', e);
-    $('#geoHeatmap').innerHTML = `<div class="alert alert-danger">Ralat: ${e.message}</div>`;
+    const container = $('#geoHeatmap');
+    if (container) {
+      container.innerHTML = `<div class="alert alert-danger">Ralat: ${e.message}</div>`;
+    }
   }
 }
 
 function loadHotspots(hotspots) {
-  const container = $('#hotspotAreas');
-  container.innerHTML = '';
+  const container = $('#hotspotAreas'); if (!container) return;
+  container.innerHTML='';
   
   if (!hotspots || !hotspots.length) {
     container.innerHTML = '<div class="list-group-item">Tiada kawasan panas ditemui.</div>';
@@ -2153,7 +2150,6 @@ function loadHotspots(hotspots) {
   hotspots.forEach((hotspot, i) => {
     const item = document.createElement('div');
     item.className = 'list-group-item';
-    
     item.innerHTML = `
       <div class="d-flex w-100 justify-content-between">
         <h6 class="mb-1">${hotspot.name}</h6>
@@ -2164,14 +2160,13 @@ function loadHotspots(hotspots) {
         <div class="progress-bar bg-danger" style="width: ${hotspot.density}%"></div>
       </div>
     `;
-    
     container.appendChild(item);
   });
 }
 
 function loadEventLocations(locations) {
-  const container = $('#eventLocations');
-  container.innerHTML = '';
+  const container = $('#eventLocations'); if (!container) return;
+  container.innerHTML='';
   
   if (!locations || !locations.length) {
     container.innerHTML = '<div class="list-group-item">Tiada lokasi sesuai ditemui.</div>';
@@ -2181,7 +2176,6 @@ function loadEventLocations(locations) {
   locations.forEach((location, i) => {
     const item = document.createElement('div');
     item.className = 'list-group-item';
-    
     item.innerHTML = `
       <div class="d-flex w-100 justify-content-between">
         <h6 class="mb-1">${location.name}</h6>
@@ -2195,55 +2189,51 @@ function loadEventLocations(locations) {
         </button>
       </div>
     `;
-    
     container.appendChild(item);
   });
 }
 
 function suggestEventLocation(locationId) {
-  // Implementation for suggesting event location
   console.log('Suggest event location:', locationId);
+  Toast.show(`Lokasi ${locationId} telah dicadangkan untuk acara akan datang.`);
 }
 
 // Initialize tabs event listeners
 document.addEventListener('DOMContentLoaded', function() {
   const triggerTabList = [].slice.call(document.querySelectorAll('#tabs button'));
-  triggerTabList.forEach(function(triggerEl) {
-    triggerEl.addEventListener('shown.bs.tab', function (event) {
-      // Load data for the active tab
-      const targetId = event.target.getAttribute('data-bs-target');
-      
-      // Only load data for existing tabs
-      if (targetId === '#tab-data') {
-        // Data tab is loaded by default
-      } else if (targetId === '#tab-reactivate') {
-        loadReactivation();
-      } else if (targetId === '#tab-pricing') {
-        loadPricing();
-      } else if (targetId === '#tab-repeat') {
-        loadRepeatDue();
-      }
+  if(triggerTabList) {
+    triggerTabList.forEach(function(triggerEl) {
+      triggerEl.addEventListener('shown.bs.tab', function (event) {
+        const targetId = event.target.getAttribute('data-bs-target');
+        
+        if (targetId === '#tab-data') {
+          // Data tab is loaded by default
+        } else if (targetId === '#tab-reactivate') {
+          loadReactivation();
+        } else if (targetId === '#tab-pricing') {
+          loadPricing();
+        } else if (targetId === '#tab-repeat') {
+          loadRepeatDue();
+        } else if (targetId === '#tab-predictive') {
+          loadPredictions();
+          loadPLV();
+          loadConversion();
+          loadChurnRisk();
+        } else if (targetId === '#tab-journey') {
+          loadPatientListForJourney();
+          loadPatientJourney();
+          loadWaitTime();
+        } else if (targetId === '#tab-segmentation') {
+          loadSegments();
+        } else if (targetId === '#tab-campaigns') {
+          loadCampaigns();
+        } else if (targetId === '#tab-geo') {
+          loadGeoHeatmap();
+        }
+      });
     });
-  });
-});
-
-// --- KEMASKINI: Fungsi untuk memuatkan senarai pesakit sebenar ---
-async function loadPatientListForJourney() {
-  try {
-    const r = await callAPI('patients_list', {});
-    const select = document.querySelector('#journeyPatient');
-    select.innerHTML = '<option value="">Pilih pesakit</option>';
-    
-    r.patients.forEach(patient => {
-      const option = document.createElement('option');
-      option.value = patient.id;
-      option.textContent = patient.name;
-      select.appendChild(option);
-    });
-  } catch (e) {
-    console.error('Error loading patient list for journey:', e);
   }
-}
+});
 </script>
 
 <!-- Bootstrap JS (defer) -->
