@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="ms">
 <head>
+  <!-- PENAMBAHAN: Mengatasi ralat Cross-Origin-Opener-Policy -->
+  <meta http-equiv="Cross-Origin-Opener-Policy" content="unsafe-none">
   <!-- CSP: ketat + serasi GIS/Apps Script/JSDelivr -->
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none';
@@ -1145,11 +1147,25 @@ function highlightActiveChip(){
   });
 }
 
-/************ ATTENDANCE (FAST VIA BACKEND) ************/
+/************ ATTENDANCE (FAST VIA BACKEND) - DIPERBAIKI ************/
 async function drawAttendance(daysOrYear){
   const days = daysOrYear===365 ? 365 : daysOrYear;
   try{
     const r = await callAPI('attendance_series',{ days });
+
+    // --- PENAMBAHAN: Semak jika respons dari API adalah sah ---
+    if (!r || !r.series || !Array.isArray(r.series)) {
+      console.warn('attendance error: Invalid response from API', r);
+      // Kosongkan carta lama jika ada, untuk mengelakkan paparan data lama
+      const ctx=$('#chartAttn');
+      if (ctx && attnChart) { 
+        attnChart.destroy(); 
+        attnChart = null; 
+      }
+      return; // Keluar dari fungsi jika data tidak sah
+    }
+    // --- TAMAT PENAMBAHAN ---
+
     const labels = r.series.map(x=>x.date);
     const data   = r.series.map(x=>x.count);
 
@@ -1166,7 +1182,15 @@ async function drawAttendance(daysOrYear){
         scales:{ y:{ beginAtZero:true, grid:{ color:'rgba(0,0,0,.05)'} }, x:{ grid:{ display:false } } },
         maintainAspectRatio:false }
     });
-  }catch(e){ console.warn('attendance error:', e.message); }
+  }catch(e){ 
+    console.warn('attendance error:', e.message); 
+    // Kosongkan carta juga di sini jika berlaku ralat
+    const ctx=$('#chartAttn');
+    if (ctx && attnChart) { 
+      attnChart.destroy(); 
+      attnChart = null; 
+    }
+  }
 }
 
 /************ TREND ALERTS & REACTIVATION ************/
