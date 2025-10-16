@@ -12,7 +12,7 @@
                  frame-src  https://accounts.google.com;">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Dashboard Pemasaran Klinik (Profesional)</title>
+  <title>Dashboard Pemasaran Klinik (Laju)</title>
 
   <!-- Performance hints -->
   <link rel="preconnect" href="https://accounts.google.com">
@@ -26,12 +26,11 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <style>
-    :root{--primary:#0d6efd;--primary-dark:#0a58ca;--secondary:#6c757d;--success:#198754;--info:#0dcaf0;--warning:#ffc107;--danger:#dc3545;--light:#f8f9fa;--dark:#212529;--border:#dee2e6;--text:#212529;--muted:#6c757d;--light-bg:#f8f9fa;--card-bg:#fff;--shadow:0 0.125rem 0.25rem rgba(0,0,0,0.075);--shadow-lg:0 0.5rem 1rem rgba(0,0,0,0.15);--gradient-1:linear-gradient(135deg, #667eea 0%, #764ba2 100%);--gradient-2:linear-gradient(135deg, #f093fb 0%, #f5576c 100%);--gradient-3:linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);--gradient-4:linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)}
+    :root{--primary:#0d6efd;--primary-dark:#0a58ca;--secondary:#6c757d;--success:#198754;--info:#0dcaf0;--warning:#ffc107;--danger:#dc3545;--light:#f8f9fa;--dark:#212529;--border:#dee2e6;--text:#212529;--muted:#6c757d;--light-bg:#f8f9fa;--card-bg:#fff;--shadow:0 0.125rem 0.25rem rgba(0,0,0,0.075);--shadow-lg:0 0.5rem 1rem rgba(0,0,0,0.15)}
     body{background:linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;min-height:100vh}
     .brand{font-weight:800;color:var(--primary);letter-spacing:-0.5px} .muted{color:var(--muted)}
     .card{border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);transition:all 0.3s ease}
@@ -90,61 +89,6 @@
     @media (max-width: 576px){.stats-grid{grid-template-columns:1fr}}
     .sync-status{position:fixed;top:0;left:0;width:100%;z-index:9999;background:var(--primary);color:white;padding:8px;text-align:center;transform:translateY(-100%);transition:transform 0.3s ease}
     .sync-status.show{transform:translateY(0)}
-    
-    /* New styles for marketing features */
-    .gradient-card{background:var(--gradient-1);color:white;border-radius:12px;padding:20px;margin-bottom:20px}
-    .gradient-card h2{margin-bottom:15px}
-    .gradient-card p{opacity:0.9}
-    .prediction-card{border-left:4px solid var(--primary);background:rgba(13, 110, 253, 0.05)}
-    .segment-card{border-radius:12px;padding:15px;margin-bottom:15px;transition:all 0.3s ease}
-    .segment-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
-    .segment-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-    .segment-title{font-weight:600;font-size:1.1rem}
-    .segment-size{background:var(--primary);color:white;border-radius:20px;padding:2px 10px;font-size:0.8rem}
-    .journey-step{position:relative;padding-left:30px;margin-bottom:20px}
-    .journey-step:before{content:'';position:absolute;left:0;top:5px;width:20px;height:20px;border-radius:50%;background:var(--primary)}
-    .journey-step:after{content:'';position:absolute;left:9px;top:25px;width:2px;height:calc(100% - 20px);background:var(--border)}
-    .journey-step:last-child:after{display:none}
-    .journey-title{font-weight:600;margin-bottom:5px}
-    .journey-desc{color:var(--muted);font-size:0.9rem}
-    .prediction-confidence{display:inline-block;background:var(--success);color:white;border-radius:20px;padding:2px 8px;font-size:0.8rem;margin-left:10px}
-    .prediction-confidence.low{background:var(--warning)}
-    .prediction-confidence.medium{background:var(--info)}
-    .prediction-confidence.high{background:var(--success)}
-    .ltv-badge{background:var(--gradient-2);color:white;border-radius:20px;padding:2px 8px;font-size:0.8rem}
-    .churn-risk{display:inline-block;border-radius:20px;padding:2px 8px;font-size:0.8rem;margin-left:10px}
-    .churn-risk.low{background:var(--success);color:white}
-    .churn-risk.medium{background:var(--warning);color:white}
-    .churn-risk.high{background:var(--danger);color:white}
-    .persona-card{border-radius:12px;padding:15px;margin-bottom:15px;background:var(--light-bg)}
-    .persona-avatar{width:60px;height:60px;border-radius:50%;background:var(--gradient-3);display:flex;align-items:center;justify-content:center;color:white;font-size:1.5rem;font-weight:700;margin-right:15px}
-    .persona-info{flex:1}
-    .persona-name{font-weight:600;font-size:1.1rem;margin-bottom:5px}
-    .persona-desc{color:var(--muted);font-size:0.9rem}
-    .persona-stats{display:flex;gap:10px;margin-top:10px}
-    .persona-stat{text-align:center}
-    .persona-stat-value{font-weight:700;font-size:1.1rem}
-    .persona-stat-label{font-size:0.8rem;color:var(--muted)}
-    .marketing-action{background:var(--gradient-4);color:white;border-radius:10px;padding:15px;margin-top:15px}
-    .marketing-action h5{margin-bottom:10px}
-    .marketing-action ul{padding-left:20px;margin-bottom:0}
-    .marketing-action li{margin-bottom:5px}
-    .insight-card{border-radius:12px;padding:15px;margin-bottom:15px;background:var(--light-bg)}
-    .insight-header{display:flex;justify-content:space-between;align-items-center;margin-bottom:10px}
-    .insight-title{font-weight:600}
-    .insight-type{background:var(--info);color:white;border-radius:20px;padding:2px 8px;font-size:0.8rem}
-    .insight-content{color:var(--text)}
-    .journey-timeline{position:relative;margin:20px 0}
-    .journey-timeline:before{content:'';position:absolute;left:20px;top:0;width:2px;height:100%;background:var(--border)}
-    .journey-event{position:relative;padding-left:50px;margin-bottom:20px}
-    .journey-event:before{content:'';position:absolute;left:10px;top:5px;width:20px;height:20px;border-radius:50%;background:var(--primary)}
-    .journey-date{font-weight:600;color:var(--primary);margin-bottom:5px}
-    .journey-event-title{font-weight:600;margin-bottom:5px}
-    .journey-event-desc{color:var(--muted);font-size:0.9rem}
-    .segment-metrics{display:flex;gap:10px;margin-top:10px}
-    .segment-metric{text-align:center;background:var(--light);border-radius:8px;padding:8px;flex:1}
-    .segment-metric-value{font-weight:700;font-size:1.1rem}
-    .segment-metric-label{font-size:0.8rem;color:var(--muted)}
   </style>
 </head>
 <body>
@@ -180,20 +124,6 @@
 
   <!-- App -->
   <main id="app" class="hidden">
-
-    <!-- Marketing Insights Section -->
-    <section class="gradient-card mb-4 fade-in">
-      <div class="d-flex justify-content-between align-items-center">
-        <div>
-          <h2><i class="bi bi-lightbulb me-2"></i>Wawasan Pemasaran Hari Ini</h2>
-          <p>Berdasarkan analisis data terkini, berikut adalah peluang pemasaran yang mungkin anda terlepas:</p>
-        </div>
-        <button id="btnRefreshInsights" class="btn btn-light"><i class="bi bi-arrow-repeat"></i> Refresh</button>
-      </div>
-      <div id="marketingInsights" class="row mt-3">
-        <!-- Insights will be populated here -->
-      </div>
-    </section>
 
     <!-- Penapis -->
     <section class="card p-4 mb-3 slide-up">
@@ -286,9 +216,6 @@
     <!-- Tabs -->
     <ul class="nav nav-pills mb-3" id="tabs">
       <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-data" type="button">Data & Carta</button></li>
-      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-predictive" type="button">Analisis Prediktif</button></li>
-      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-journey" type="button">Perjalanan Pesakit</button></li>
-      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-segment" type="button">Segmentasi Pesakit</button></li>
       <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-reactivate" type="button">Re-activation 30+</button></li>
       <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-pricing" type="button">Harga & Reminder</button></li>
       <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-repeat" type="button">Repeat Registry</button></li>
@@ -378,135 +305,6 @@
             <div class="d-flex gap-2">
               <button class="btn btn-outline-secondary btn-sm" id="btnPrev" type="button"><i class="bi bi-chevron-left"></i> Sebelumnya</button>
               <button class="btn btn-outline-secondary btn-sm" id="btnNext" type="button">Seterusnya <i class="bi bi-chevron-right"></i></button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB: Predictive Analytics -->
-      <div class="tab-pane fade" id="tab-predictive">
-        <div class="row g-3 mb-3">
-          <div class="col-12 col-lg-6">
-            <div class="card p-3">
-              <h6 class="mb-3">Ramalan Trend Penyakit</h6>
-              <div class="mb-3">
-                <label class="form-label">Pilih Penyakit:</label>
-                <select id="diseaseSelect" class="form-select">
-                  <option value="">Pilih penyakit...</option>
-                </select>
-              </div>
-              <div class="chart-h-lg"><canvas id="predictionChart"></canvas></div>
-              <div class="mt-2 small text-muted">
-                <i class="bi bi-info-circle me-1"></i>
-                Ramalan berdasarkan data historikal 6 bulan terakhir
-              </div>
-            </div>
-          </div>
-          <div class="col-12 col-lg-6">
-            <div class="card p-3">
-              <h6 class="mb-3">Analisis Nilai Sepanjang Hayat Pesakit (LTV)</h6>
-              <div class="chart-h-lg"><canvas id="ltvChart"></canvas>
-              <div class="mt-2 small text-muted">
-                <i class="bi bi-info-circle me-1"></i>
-                LTV dianggarkan berdasarkan frekuensi lawatan dan jenis rawatan
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="row g-3 mb-3">
-          <div class="col-12 col-lg-6">
-            <div class="card p-3">
-              <h6 class="mb-3">Ramalan Kadar Pertukaran Prospek</h6>
-              <div class="chart-h-lg"><canvas id="conversionChart"></canvas>
-              <div class="mt-2 small text-muted">
-                <i class="bi bi-info-circle me-1"></i>
-                Analisis kadar pertukaran dari prospek ke pesakit aktif
-              </div>
-            </div>
-          </div>
-          <div class="col-12 col-lg-6">
-            <div class="card p-3">
-              <h6 class="mb-3">Risiko Kehilangan Pesakit</h6>
-              <div id="churnRiskList" class="mt-3">
-                <!-- Churn risk list will be populated here -->
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB: Patient Journey -->
-      <div class="tab-pane fade" id="tab-journey">
-        <div class="row g-3 mb-3">
-          <div class="col-12 col-lg-8">
-            <div class="card p-3">
-              <h6 class="mb-3">Peta Perjalanan Pesakit</h6>
-              <div class="mb-3">
-                <label class="form-label">Pilih Pesakit:</label>
-                <select id="patientSelect" class="form-select">
-                  <option value="">Pilih pesakit...</option>
-                </select>
-              </div>
-              <div class="journey-timeline" id="patientJourney">
-                <!-- Patient journey will be populated here -->
-              </div>
-            </div>
-          </div>
-          <div class="col-12 col-lg-4">
-            <div class="card p-3">
-              <h6 class="mb-3">Titik Sentuh Kritikal</h6>
-              <div id="touchpointsList">
-                <!-- Touchpoints list will be populated here -->
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="row g-3 mb-3">
-          <div class="col-12">
-            <div class="card p-3">
-              <h6 class="mb-3">Analisis Tempoh Menunggu</h6>
-              <div class="chart-h-lg"><canvas id="waitingTimeChart"></canvas>
-              <div class="mt-2 small text-muted">
-                <i class="bi bi-info-circle me-1"></i>
-                Impak tempoh menunggu terhadap kepuasan pesakit
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB: Patient Segmentation -->
-      <div class="tab-pane fade" id="tab-segment">
-        <div class="row g-3 mb-3">
-          <div class="col-12 col-lg-8">
-            <div class="card p-3">
-              <h6 class="mb-3">Segmentasi Pesakit Dinamik</h6>
-              <div class="chart-h-lg"><canvas id="segmentChart"></canvas>
-              <div class="mt-2 small text-muted">
-                <i class="bi bi-info-circle me-1"></i>
-                Segmentasi berdasarkan demografi, diagnosis, frekuensi lawatan, dan nilai
-              </div>
-            </div>
-          </div>
-          <div class="col-12 col-lg-4">
-            <div class="card p-3">
-              <h6 class="mb-3">Potensi Pemasaran Segmen</h6>
-              <div id="segmentPotential">
-                <!-- Segment potential will be populated here -->
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="row g-3 mb-3">
-          <div class="col-12">
-            <div class="card p-3">
-              <h6 class="mb-3">Persona Pesakit</h6>
-              <div id="personasList" class="row">
-                <!-- Personas will be populated here -->
-              </div>
             </div>
           </div>
         </div>
@@ -639,7 +437,7 @@ const BACKEND_URL = 'https://script.google.com/macros/s/AKfycby1A1DrDRsoW3CP9tDI
 
 /************ STATE ************/
 let ID_TOKEN=null;
-let donutChart, barChart, attnChart, predictionChart, ltvChart, conversionChart, waitingTimeChart, segmentChart;
+let donutChart, barChart, attnChart;
 let CUR_PAGE=1;
 let LAST_PATIENT_ROWS=[];
 let AUTO_VAX_SESSION_KEYS=new Set();
@@ -649,9 +447,6 @@ const CHART_ANIM = false;
 let isLoading = false;
 let loadingTimeout;
 let isSyncing = false;
-let PATIENT_JOURNEY_DATA = {};
-let SEGMENTATION_DATA = {};
-let PREDICTIVE_DATA = {};
 
 /************ DOM helpers ************/
 const $ = (q)=>document.querySelector(q);
@@ -743,7 +538,6 @@ window.onload = () => {
 
   $('#btnReloadTrend').addEventListener('click', loadTrends);
   $('#btnReloadReAct').addEventListener('click', loadReactivation);
-  $('#btnRefreshInsights').addEventListener('click', loadMarketingInsights);
 
   $('#btnSavePrice').addEventListener('click', savePrice);
   $('#btnRepSave').addEventListener('click', saveRepeat);
@@ -762,31 +556,6 @@ window.onload = () => {
   });
 
   $('#btnScanVaxNow').addEventListener('click', ()=>scanVaccinations(LAST_PATIENT_ROWS,true));
-
-  // Tab change events for new features
-  document.querySelectorAll('[data-bs-toggle="pill"]').forEach(tab => {
-    tab.addEventListener('shown.bs.tab', (e) => {
-      const target = e.target.getAttribute('data-bs-target');
-      
-      if (target === '#tab-predictive') {
-        loadPredictiveAnalytics();
-      } else if (target === '#tab-journey') {
-        loadPatientJourney();
-      } else if (target === '#tab-segment') {
-        loadPatientSegmentation();
-      }
-    });
-  });
-
-  // Disease selection change event
-  $('#diseaseSelect').addEventListener('change', () => {
-    updateDiseasePrediction();
-  });
-
-  // Patient selection change event
-  $('#patientSelect').addEventListener('change', () => {
-    updatePatientJourney();
-  });
 
   // Show/hide FAB based on scroll
   window.addEventListener('scroll', throttle(() => {
@@ -820,7 +589,7 @@ async function onSignIn(resp){
     healthCheck();
 
     await loadPatients(true, { refreshGlobal:true });
-    await Promise.all([loadPricing(), loadRepeatDue(), loadMarketingInsights()]);
+    await Promise.all([loadPricing(), loadRepeatDue()]);
   }catch(e){
     console.error(e);
     $('#signinMsg').textContent='Log masuk gagal.';
@@ -878,571 +647,6 @@ async function loadSummary(){
     console.warn('summary error:', err.message);
     return { labeled:0, rows:[] };
   }
-}
-
-/************ MARKETING INSIGHTS ************/
-async function loadMarketingInsights(){
-  try{
-    const insights = await callAPI('marketing_insights',{});
-    renderMarketingInsights(insights);
-  }catch(err){
-    console.warn('marketing insights error:', err.message);
-    renderMarketingInsights([]);
-  }
-}
-
-function renderMarketingInsights(insights){
-  const container = $('#marketingInsights');
-  container.innerHTML = '';
-  
-  if (!insights || !insights.length) {
-    container.innerHTML = '<div class="col-12"><div class="alert alert-info">Tiada wawasan pemasaran tersedia pada masa ini.</div></div>';
-    return;
-  }
-  
-  insights.forEach((insight, index) => {
-    const col = document.createElement('div');
-    col.className = 'col-md-6 col-lg-4 mb-3';
-    
-    const bgColor = index % 3 === 0 ? 'rgba(13, 110, 253, 0.1)' : 
-                   index % 3 === 1 ? 'rgba(25, 135, 84, 0.1)' : 
-                   'rgba(255, 193, 7, 0.1)';
-    
-    const iconColor = index % 3 === 0 ? 'text-primary' : 
-                     index % 3 === 1 ? 'text-success' : 
-                     'text-warning';
-    
-    col.innerHTML = `
-      <div class="card h-100" style="background-color: ${bgColor}">
-        <div class="card-body">
-          <div class="d-flex align-items-center mb-2">
-            <i class="bi ${insight.icon || 'bi-lightbulb'} ${iconColor} me-2"></i>
-            <h6 class="card-title mb-0">${insight.title || 'Wawasan Pemasaran'}</h6>
-          </div>
-          <p class="card-text">${insight.description || 'Tiada deskripsi tersedia.'}</p>
-          <div class="d-flex justify-content-between align-items-center">
-            <span class="badge bg-light text-dark">${insight.type || 'Umum'}</span>
-            <button class="btn btn-sm btn-outline-primary" onclick="applyInsight('${insight.id || ''}')">
-              <i class="bi bi-arrow-right"></i> Tindakan
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
-    
-    container.appendChild(col);
-  });
-}
-
-function applyInsight(insightId) {
-  // This function would apply the recommended marketing action
-  Toast.show('Tindakan pemasaran akan dilaksanakan');
-  // Implementation would depend on the specific insight
-}
-
-/************ PREDICTIVE ANALYTICS ************/
-async function loadPredictiveAnalytics(){
-  try{
-    // Load disease data for dropdown
-    const taxonomy = await callAPI('taxonomy_list',{});
-    populateDiseaseSelect(taxology.items || []);
-    
-    // Load predictive data
-    const predictiveData = await callAPI('predictive_analytics',{});
-    PREDICTIVE_DATA = predictiveData;
-    
-    // Initialize charts
-    initializePredictionCharts();
-    
-    // Load churn risk data
-    const churnData = await callAPI('churn_risk',{});
-    renderChurnRisk(churnData.risks || []);
-    
-  }catch(err){
-    console.warn('predictive analytics error:', err.message);
-  }
-}
-
-function populateDiseaseSelect(diseases) {
-  const select = $('#diseaseSelect');
-  select.innerHTML = '<option value="">Pilih penyakit...</option>';
-  
-  // Filter to only include actual diseases
-  const actualDiseases = diseases.filter(d => d.is_disease === 'true');
-  
-  actualDiseases.forEach(disease => {
-    const option = document.createElement('option');
-    option.value = disease.code;
-    option.textContent = disease.name;
-    select.appendChild(option);
-  });
-}
-
-function initializePredictionCharts() {
-  // Disease trend prediction chart
-  const predictionCtx = $('#predictionChart');
-  if (predictionChart) predictionChart.destroy();
-  
-  predictionChart = new Chart(predictionCtx, {
-    type: 'line',
-    data: {
-      labels: [],
-      datasets: [{
-        label: 'Data Sebenar',
-        data: [],
-        borderColor: 'rgb(13, 110, 253)',
-        backgroundColor: 'rgba(13, 110, 253, 0.1)',
-        tension: 0.1
-      }, {
-        label: 'Ramalan',
-        data: [],
-        borderColor: 'rgb(255, 99, 132)',
-        backgroundColor: 'rgba(255, 99, 132, 0.1)',
-        borderDash: [5, 5]
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          beginAtZero: true,
-          title: {
-            display: true,
-            text: 'Bilangan Kes'
-          }
-        },
-        x: {
-          title: {
-            display: true,
-            text: 'Tarikh'
-          }
-        }
-      },
-      plugins: {
-        tooltip: {
-          mode: 'index',
-          intersect: false
-        }
-      }
-    }
-  });
-  
-  // LTV chart
-  const ltvCtx = $('#ltvChart');
-  if (ltvChart) ltvChart.destroy();
-  
-  ltvChart = new Chart(ltvCtx, {
-    type: 'bar',
-    data: {
-      labels: [],
-      datasets: [{
-        label: 'Nilai Sepanjang Hayat (RM)',
-        data: [],
-        backgroundColor: 'rgba(25, 135, 84, 0.7)',
-        borderColor: 'rgb(25, 135, 84)',
-        borderWidth: 1
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          beginAtZero: true,
-          title: {
-            display: true,
-            text: 'RM'
-          }
-        }
-      }
-    }
-  });
-  
-  // Conversion chart
-  const conversionCtx = $('#conversionChart');
-  if (conversionChart) conversionChart.destroy();
-  
-  conversionChart = new Chart(conversionCtx, {
-    type: 'line',
-    data: {
-      labels: [],
-      datasets: [{
-        label: 'Kadar Pertukaran (%)',
-        data: [],
-        borderColor: 'rgb(255, 193, 7)',
-        backgroundColor: 'rgba(255, 193, 7, 0.1)',
-        tension: 0.1
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          beginAtZero: true,
-          max: 100,
-          title: {
-            display: true,
-            text: '%'
-          }
-        }
-      }
-    }
-  });
-}
-
-function updateDiseasePrediction() {
-  const selectedDisease = $('#diseaseSelect').value;
-  
-  if (!selectedDisease || !PREDICTIVE_DATA.disease_trends) {
-    return;
-  }
-  
-  const diseaseData = PREDICTIVE_DATA.disease_trends[selectedDisease];
-  
-  if (!diseaseData) {
-    return;
-  }
-  
-  // Update prediction chart
-  predictionChart.data.labels = diseaseData.labels || [];
-  predictionChart.data.datasets[0].data = diseaseData.actual || [];
-  predictionChart.data.datasets[1].data = diseaseData.predicted || [];
-  predictionChart.update();
-}
-
-function renderChurnRisk(risks) {
-  const container = $('#churnRiskList');
-  container.innerHTML = '';
-  
-  if (!risks.length) {
-    container.innerHTML = '<div class="alert alert-info">Tiada risiko kehilangan pesakit yang tinggi dikesan.</div>';
-    return;
-  }
-  
-  risks.forEach(risk => {
-    const riskLevel = risk.risk_level || 'medium';
-    const riskClass = riskLevel === 'high' ? 'danger' : 
-                     riskLevel === 'medium' ? 'warning' : 'success';
-    
-    const riskItem = document.createElement('div');
-    riskItem.className = 'card mb-2';
-    riskItem.innerHTML = `
-      <div class="card-body p-3">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <h6 class="mb-1">${risk.name || 'Pesakit Tanpa Nama'}</h6>
-            <div class="small text-muted">Lawatan terakhir: ${risk.last_visit || 'Tidak diketahui'}</div>
-          </div>
-          <span class="churn-risk ${riskLevel}">${riskLevel === 'high' ? 'Tinggi' : riskLevel === 'medium' ? 'Sederhana' : 'Rendah'}</span>
-        </div>
-        <div class="mt-2">
-          <div class="small text-muted">Cadangan tindakan:</div>
-          <div class="small">${risk.recommendation || 'Hubungi pesakit untuk temujanji susulan'}</div>
-        </div>
-      </div>
-    `;
-    
-    container.appendChild(riskItem);
-  });
-}
-
-/************ PATIENT JOURNEY ************/
-async function loadPatientJourney(){
-  try{
-    // Load patient data for dropdown
-    const patients = await callAPI('patients_list',{});
-    populatePatientSelect(patients.rows || []);
-    
-    // Load touchpoints data
-    const touchpoints = await callAPI('touchpoints',{});
-    renderTouchpoints(touchpoints.points || []);
-    
-    // Initialize waiting time chart
-    initializeWaitingTimeChart();
-    
-  }catch(err){
-    console.warn('patient journey error:', err.message);
-  }
-}
-
-function populatePatientSelect(patients) {
-  const select = $('#patientSelect');
-  select.innerHTML = '<option value="">Pilih pesakit...</option>';
-  
-  patients.forEach(patient => {
-    const option = document.createElement('option');
-    option.value = patient.phone || patient.name;
-    option.textContent = `${patient.name} (${patient.phone})`;
-    select.appendChild(option);
-  });
-}
-
-function renderTouchpoints(touchpoints) {
-  const container = $('#touchpointsList');
-  container.innerHTML = '';
-  
-  if (!touchpoints.length) {
-    container.innerHTML = '<div class="alert alert-info">Tiada titik sentuh kritikal dikesan.</div>';
-    return;
-  }
-  
-  touchpoints.forEach(point => {
-    const pointItem = document.createElement('div');
-    pointItem.className = 'journey-step';
-    pointItem.innerHTML = `
-      <div class="journey-title">${point.name || 'Titik Sentuh'}</div>
-      <div class="journey-desc">${point.description || 'Tiada deskripsi'}</div>
-      <div class="mt-2">
-        <span class="badge bg-primary">${point.conversion_rate || 0}% pertukaran</span>
-        <span class="badge bg-secondary ms-1">${point.avg_time || 0} min</span>
-      </div>
-    `;
-    
-    container.appendChild(pointItem);
-  });
-}
-
-function initializeWaitingTimeChart() {
-  const ctx = $('#waitingTimeChart');
-  if (waitingTimeChart) waitingTimeChart.destroy();
-  
-  waitingTimeChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: [],
-      datasets: [{
-        label: 'Tempoh Menunggu (minit)',
-        data: [],
-        backgroundColor: 'rgba(13, 110, 253, 0.7)',
-        borderColor: 'rgb(13, 110, 253)',
-        borderWidth: 1
-      }, {
-        label: 'Kepuasan Pesakit',
-        data: [],
-        backgroundColor: 'rgba(25, 135, 84, 0.7)',
-        borderColor: 'rgb(25, 135, 84)',
-        borderWidth: 1,
-        yAxisID: 'y1'
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          beginAtZero: true,
-          title: {
-            display: true,
-            text: 'Minit'
-          }
-        },
-        y1: {
-          position: 'right',
-          beginAtZero: true,
-          max: 100,
-          title: {
-            display: true,
-            text: 'Kepuasan (%)'
-          },
-          grid: {
-            drawOnChartArea: false
-          }
-        }
-      }
-    }
-  });
-}
-
-function updatePatientJourney() {
-  const selectedPatient = $('#patientSelect').value;
-  
-  if (!selectedPatient) {
-    $('#patientJourney').innerHTML = '<div class="alert alert-info">Sila pilih pesakit untuk melihat perjalanan mereka.</div>';
-    return;
-  }
-  
-  // In a real implementation, this would fetch the patient journey data
-  // For now, we'll use mock data
-  const mockJourney = [
-    { date: '2023-01-15', title: 'Temujanji Pertama', desc: 'Pesakit datang untuk konsultasi awal' },
-    { date: '2023-01-22', title: 'Ujian Makmal', desc: 'Pesakit menjalani ujian makmal' },
-    { date: '2023-01-29', title: 'Diagnosis', desc: 'Pesakit menerima diagnosis rasmi' },
-    { date: '2023-02-05', title: 'Rawatan Pertama', desc: 'Pesakit memulakan rawatan' },
-    { date: '2023-02-19', title: 'Tindak Susulan', desc: 'Pesakit datang untuk tinjauan semula' }
-  ];
-  
-  const container = $('#patientJourney');
-  container.innerHTML = '';
-  
-  mockJourney.forEach(event => {
-    const eventItem = document.createElement('div');
-    eventItem.className = 'journey-event';
-    eventItem.innerHTML = `
-      <div class="journey-date">${event.date}</div>
-      <div class="journey-event-title">${event.title}</div>
-      <div class="journey-event-desc">${event.desc}</div>
-    `;
-    
-    container.appendChild(eventItem);
-  });
-}
-
-/************ PATIENT SEGMENTATION ************/
-async function loadPatientSegmentation(){
-  try{
-    // Load segmentation data
-    const segmentationData = await callAPI('patient_segmentation',{});
-    SEGMENTATION_DATA = segmentationData;
-    
-    // Initialize segment chart
-    initializeSegmentChart();
-    
-    // Render segment potential
-    renderSegmentPotential(segmentationData.segments || []);
-    
-    // Render personas
-    renderPersonas(segmentationData.personas || []);
-    
-  }catch(err){
-    console.warn('patient segmentation error:', err.message);
-  }
-}
-
-function initializeSegmentChart() {
-  const ctx = $('#segmentChart');
-  if (segmentChart) segmentChart.destroy();
-  
-  segmentChart = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: [],
-      datasets: [{
-        data: [],
-        backgroundColor: [
-          'rgba(13, 110, 253, 0.7)',
-          'rgba(25, 135, 84, 0.7)',
-          'rgba(255, 193, 7, 0.7)',
-          'rgba(220, 53, 69, 0.7)',
-          'rgba(111, 66, 193, 0.7)'
-        ],
-        borderWidth: 1
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'bottom'
-        }
-      }
-    }
-  });
-  
-  // Update with actual data if available
-  if (SEGMENTATION_DATA.segments) {
-    segmentChart.data.labels = SEGMENTATION_DATA.segments.map(s => s.name);
-    segmentChart.data.datasets[0].data = SEGMENTATION_DATA.segments.map(s => s.count);
-    segmentChart.update();
-  }
-}
-
-function renderSegmentPotential(segments) {
-  const container = $('#segmentPotential');
-  container.innerHTML = '';
-  
-  if (!segments.length) {
-    container.innerHTML = '<div class="alert alert-info">Tiada segmen pesakit dikesan.</div>';
-    return;
-  }
-  
-  segments.forEach(segment => {
-    const segmentItem = document.createElement('div');
-    segmentItem.className = 'segment-card';
-    segmentItem.innerHTML = `
-      <div class="segment-header">
-        <div class="segment-title">${segment.name || 'Segmen Tanpa Nama'}</div>
-        <div class="segment-size">${segment.count || 0} pesakit</div>
-      </div>
-      <div class="segment-metrics">
-        <div class="segment-metric">
-          <div class="segment-metric-value">RM${segment.avg_ltv || 0}</div>
-          <div class="segment-metric-label">LTV Purata</div>
-        </div>
-        <div class="segment-metric">
-          <div class="segment-metric-value">${segment.conversion_rate || 0}%</div>
-          <div class="segment-metric-label">Kadar Pertukaran</div>
-        </div>
-        <div class="segment-metric">
-          <div class="segment-metric-value">${segment.retention_rate || 0}%</div>
-          <div class="segment-metric-label">Kadar Kekalan</div>
-        </div>
-      </div>
-      <div class="marketing-action">
-        <h5><i class="bi bi-megaphone me-2"></i>Strategi Pemasaran</h5>
-        <ul>
-          <li>${segment.strategy_1 || 'Fokus pada komunikasi peribadi'}</li>
-          <li>${segment.strategy_2 || 'Tawarkan promosi eksklusif'}</li>
-          <li>${segment.strategy_3 || 'Sediakan maklumat berkaitan'}</li>
-        </ul>
-      </div>
-    `;
-    
-    container.appendChild(segmentItem);
-  });
-}
-
-function renderPersonas(personas) {
-  const container = $('#personasList');
-  container.innerHTML = '';
-  
-  if (!personas.length) {
-    container.innerHTML = '<div class="col-12"><div class="alert alert-info">Tiada persona pesakit dikesan.</div></div>';
-    return;
-  }
-  
-  personas.forEach(persona => {
-    const personaCol = document.createElement('div');
-    personaCol.className = 'col-md-6 col-lg-4 mb-3';
-    
-    personaCol.innerHTML = `
-      <div class="persona-card">
-        <div class="d-flex align-items-center">
-          <div class="persona-avatar">${persona.name ? persona.name.charAt(0).toUpperCase() : 'P'}</div>
-          <div class="persona-info">
-            <div class="persona-name">${persona.name || 'Persona Tanpa Nama'}</div>
-            <div class="persona-desc">${persona.description || 'Tiada deskripsi'}</div>
-          </div>
-        </div>
-        <div class="persona-stats">
-          <div class="persona-stat">
-            <div class="persona-stat-value">${persona.age_range || 'Tidak diketahui'}</div>
-            <div class="persona-stat-label">Umur</div>
-          </div>
-          <div class="persona-stat">
-            <div class="persona-stat-value">${persona.visit_frequency || 'Tidak diketahui'}</div>
-            <div class="persona-stat-label">Frekuensi Lawatan</div>
-          </div>
-          <div class="persona-stat">
-            <div class="persona-stat-value">RM${persona.avg_spend || 0}</div>
-            <div class="persona-stat-label">Perbelanjaan Purata</div>
-          </div>
-        </div>
-        <div class="marketing-action">
-          <h5><i class="bi bi-bullseye me-2"></i>Tindakan Pemasaran</h5>
-          <ul>
-            <li>${persona.action_1 || 'Hantar promosi berkaitan'}</li>
-            <li>${persona.action_2 || 'Sediakan maklumat relevan'}</li>
-            <li>${persona.action_3 || 'Gunakan saluran komunikasi pilihan'}</li>
-          </ul>
-        </div>
-      </div>
-    `;
-    
-    container.appendChild(personaCol);
-  });
 }
 
 /************ CHARTS + QUICK CATS ************/
@@ -1551,7 +755,7 @@ async function drawAttendance(daysOrYear){
       type: 'line',
       data: { labels, datasets: [{ label:'Kehadiran', data, fill:false, tension:0.25, borderWidth:2, pointRadius:0, borderColor: '#0d6efd' }]},
       options: { animation:CHART_ANIM, plugins:{ legend:{ display:false } },
-        scales:{ y:{ beginAtZero:true, grid:{ color:'rgba(0,0,0,.05)'}}, x:{ grid:{ display:false } } },
+        scales:{ y:{ beginAtZero:true, grid:{ color:'rgba(0,0,0,.05)'} }, x:{ grid:{ display:false } } },
         maintainAspectRatio:false }
     });
   }catch(e){ console.warn('attendance error:', e.message); }
@@ -1750,11 +954,7 @@ async function startSync(){
   updateStatus('Memulakan sync…', 10);
   
   try{
-    console.log('Starting sync with params:', { startISO: s, endISO: e, granularity: gran, dedup: true });
-    
     const { job, synced, total } = await callAPI('sync_start',{ startISO:s, endISO:e, granularity:gran, dedup:true });
-    
-    console.log('Sync started:', { job, synced, total });
     
     // Show immediate feedback
     showSyncStatus(`Sync dimulakan: ${synced}/${total} rekod baharu`);
@@ -1770,7 +970,7 @@ async function startSync(){
     showSyncStatus(`Sync selesai: ${synced}/${total} rekod baharu`, false);
     Toast.show(`Sync selesai: ${synced}/${total} rekod baharu`);
   }catch(err){ 
-    console.error('Sync error:', err);
+    console.error(err); 
     showSyncStatus(`Ralat sync: ${err.message}`, false);
     updateStatus('Ralat sync: '+err.message, 0); 
     Toast.show('Ralat sync: ' + err.message);
